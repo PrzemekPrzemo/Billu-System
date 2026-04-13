@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\ModuleAccess;
 use App\Core\Session;
 use App\Core\Language;
 use App\Models\Client;
@@ -460,6 +461,7 @@ class OfficeController extends Controller
 
     public function analytics(): void
     {
+        ModuleAccess::requireModule('analytics');
         $officeId = (int) Session::get('office_id');
         $clientFilter = $this->getEmployeeClientFilter();
 
@@ -702,6 +704,7 @@ class OfficeController extends Controller
     public function erpExportForm(): void
     {
         Auth::requireOffice();
+        ModuleAccess::requireModule('erp-export');
         $officeId = Session::get('office_id');
         $clients = \App\Models\Client::findByOffice($officeId);
         $batches = InvoiceBatch::findByOffice($officeId);
@@ -717,6 +720,7 @@ class OfficeController extends Controller
     public function erpExport(): void
     {
         Auth::requireOffice();
+        ModuleAccess::requireModule('erp-export');
         if (!$this->validateCsrf()) { $this->redirect('/office/erp-export'); return; }
 
         $batchId = (int) ($_POST['batch_id'] ?? 0);
@@ -768,6 +772,7 @@ class OfficeController extends Controller
 
     public function employees(): void
     {
+        ModuleAccess::requireModule('hr');
         if (Auth::isEmployee()) { $this->redirect('/office'); return; }
         $officeId = Session::get('office_id');
         $employees = OfficeEmployee::findByOffice($officeId, false);
@@ -776,6 +781,7 @@ class OfficeController extends Controller
 
     public function employeeCreateForm(): void
     {
+        ModuleAccess::requireModule('hr');
         if (Auth::isEmployee()) { $this->redirect('/office'); return; }
         $officeId = Session::get('office_id');
         $clients = Client::findByOffice($officeId, true);
@@ -788,6 +794,7 @@ class OfficeController extends Controller
 
     public function employeeCreate(): void
     {
+        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
@@ -862,6 +869,7 @@ class OfficeController extends Controller
 
     public function employeeEditForm(string $id): void
     {
+        ModuleAccess::requireModule('hr');
         $officeId = Session::get('office_id');
         $employee = OfficeEmployee::findById((int) $id);
 
@@ -882,6 +890,7 @@ class OfficeController extends Controller
 
     public function employeeUpdate(string $id): void
     {
+        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
@@ -946,6 +955,7 @@ class OfficeController extends Controller
 
     public function employeeDelete(string $id): void
     {
+        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
@@ -1099,6 +1109,7 @@ class OfficeController extends Controller
 
     public function messages(): void
     {
+        ModuleAccess::requireModule('messages');
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
         $employeeId = $isEmployee ? Session::get('employee_id') : null;
@@ -1127,6 +1138,7 @@ class OfficeController extends Controller
 
     public function messageThread(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         $officeId = Session::get('office_id');
         $root = Message::findById($id);
         if (!$root || $root['parent_id'] !== null) {
@@ -1167,6 +1179,7 @@ class OfficeController extends Controller
 
     public function messageCreate(): void
     {
+        ModuleAccess::requireModule('messages');
         if (!$this->validateCsrf()) { $this->redirect('/office/messages'); return; }
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
@@ -1205,6 +1218,7 @@ class OfficeController extends Controller
 
     public function messageReply(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         if (!$this->validateCsrf()) { $this->redirect("/office/messages/{$id}"); return; }
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
@@ -1237,6 +1251,7 @@ class OfficeController extends Controller
 
     public function messageNotificationPrefs(): void
     {
+        ModuleAccess::requireModule('messages');
         $isEmployee = Auth::isEmployee();
         $userType = $isEmployee ? 'employee' : 'office';
         $userId = $isEmployee ? Session::get('employee_id') : Session::get('office_id');
@@ -1261,6 +1276,7 @@ class OfficeController extends Controller
 
     public function tasks(): void
     {
+        ModuleAccess::requireModule('tasks');
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
         $employeeId = $isEmployee ? Session::get('employee_id') : null;
@@ -1288,6 +1304,7 @@ class OfficeController extends Controller
 
     public function taskCreate(): void
     {
+        ModuleAccess::requireModule('tasks');
         $this->validateCsrf();
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
@@ -1354,6 +1371,7 @@ class OfficeController extends Controller
 
     public function taskUpdate(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $this->validateCsrf();
         $officeId = Session::get('office_id');
 
@@ -1396,6 +1414,7 @@ class OfficeController extends Controller
 
     public function taskDelete(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $this->validateCsrf();
         $officeId = Session::get('office_id');
 
@@ -1420,6 +1439,7 @@ class OfficeController extends Controller
 
     public function tasksBilling(): void
     {
+        ModuleAccess::requireModule('tasks');
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
         $employeeId = $isEmployee ? Session::get('employee_id') : null;
@@ -1448,6 +1468,7 @@ class OfficeController extends Controller
 
     public function taskBillingUpdate(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $this->validateCsrf();
         $officeId = Session::get('office_id');
 
@@ -1476,6 +1497,7 @@ class OfficeController extends Controller
 
     public function taxPayments(): void
     {
+        ModuleAccess::requireModule('tax-payments');
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
         $employeeId = $isEmployee ? Session::get('employee_id') : null;
@@ -1518,6 +1540,7 @@ class OfficeController extends Controller
 
     public function taxPaymentsSave(): void
     {
+        ModuleAccess::requireModule('tax-payments');
         $this->validateCsrf();
         $officeId = Session::get('office_id');
         $isEmployee = Auth::isEmployee();
@@ -1591,6 +1614,7 @@ class OfficeController extends Controller
 
     public function messageAttachment(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         $officeId = Session::get('office_id');
         $msg = Message::findById($id);
         if (!$msg) {
@@ -1759,6 +1783,7 @@ class OfficeController extends Controller
 
     public function taskAttachment(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $officeId = Session::get('office_id');
         $task = ClientTask::findById($id);
         if (!$task || empty($task['attachment_path'])) {
@@ -2004,6 +2029,7 @@ class OfficeController extends Controller
 
     public function taxCalendar(): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         $officeId = (int) Session::get('office_id');
         $selectedMonth = (int) ($_GET['month'] ?? date('n'));
         $selectedYear = (int) ($_GET['year'] ?? date('Y'));
@@ -2102,6 +2128,7 @@ class OfficeController extends Controller
 
     public function taxCalendarConfig(int $clientId): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         $officeId = (int) Session::get('office_id');
         $clientData = Client::findById($clientId);
         if (!$clientData || (int) $clientData['office_id'] !== $officeId) {
@@ -2119,6 +2146,7 @@ class OfficeController extends Controller
 
     public function taxCalendarConfigSave(int $clientId): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         if (!$this->validateCsrf()) { $this->redirect('/office/tax-calendar'); return; }
         $officeId = (int) Session::get('office_id');
         $clientData = Client::findById($clientId);
@@ -2142,6 +2170,7 @@ class OfficeController extends Controller
 
     public function taxCalendarAddEvent(): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         if (!$this->validateCsrf()) { $this->redirect('/office/tax-calendar'); return; }
         $officeId = (int) Session::get('office_id');
 
@@ -2235,6 +2264,7 @@ class OfficeController extends Controller
 
     public function taxCalendarDeleteEvent(int $eventId): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         if (!$this->validateCsrf()) { $this->redirect('/office/tax-calendar'); return; }
         $officeId = (int) Session::get('office_id');
         $month = (int) ($_POST['month'] ?? date('n'));
@@ -2250,6 +2280,7 @@ class OfficeController extends Controller
 
     public function taxCalculator(): void
     {
+        ModuleAccess::requireModule('tax-calculator');
         $officeId = (int) Session::get('office_id');
         $tab = $_GET['tab'] ?? 'tax';
 
@@ -2381,6 +2412,7 @@ class OfficeController extends Controller
 
     public function taxCalculatorPdf(): void
     {
+        ModuleAccess::requireModule('tax-calculator');
         $officeId = (int) Session::get('office_id');
         $revenue = (float) ($_GET['revenue'] ?? 0);
         $isGross = (bool) ($_GET['is_gross'] ?? 1);
@@ -2411,6 +2443,7 @@ class OfficeController extends Controller
 
     public function taxCalculatorSave(): void
     {
+        ModuleAccess::requireModule('tax-calculator');
         if (!$this->validateCsrf()) { $this->redirect('/office/tax-calculator'); return; }
         $officeId = (int) Session::get('office_id');
         $clientId = (int) ($_POST['client_id'] ?? 0);
@@ -2440,6 +2473,7 @@ class OfficeController extends Controller
 
     public function taxCalculatorDeleteSimulation(int $id): void
     {
+        ModuleAccess::requireModule('tax-calculator');
         if (!$this->validateCsrf()) { $this->redirect('/office/tax-calculator'); return; }
         $officeId = (int) Session::get('office_id');
         \App\Models\TaxSimulation::delete($id, $officeId);
@@ -2451,6 +2485,7 @@ class OfficeController extends Controller
 
     public function duplicatesReport(): void
     {
+        ModuleAccess::requireModule('duplicates');
         $officeId = (int) Session::get('office_id');
         $selectedStatus = $_GET['status'] ?? null;
         if ($selectedStatus === '') $selectedStatus = null;
@@ -2467,6 +2502,7 @@ class OfficeController extends Controller
 
     public function duplicatesScan(): void
     {
+        ModuleAccess::requireModule('duplicates');
         if (!$this->validateCsrf()) { $this->redirect('/office/duplicates'); return; }
         $officeId = (int) Session::get('office_id');
 
@@ -2477,6 +2513,7 @@ class OfficeController extends Controller
 
     public function duplicateReview(int $id): void
     {
+        ModuleAccess::requireModule('duplicates');
         if (!$this->validateCsrf()) { $this->redirect('/office/duplicates'); return; }
         $officeId = (int) Session::get('office_id');
         $status = $_POST['status'] ?? '';
@@ -2686,6 +2723,7 @@ class OfficeController extends Controller
 
     public function clientFiles(string $id): void
     {
+        ModuleAccess::requireModule('files');
         $officeId = (int) Session::get('office_id');
         $clientFilter = $this->getEmployeeClientFilter();
         $clientId = (int) $id;
@@ -2719,6 +2757,7 @@ class OfficeController extends Controller
 
     public function clientFileUpload(string $id): void
     {
+        ModuleAccess::requireModule('files');
         $clientId = (int) $id;
 
         if (!$this->validateCsrf()) {
@@ -2854,6 +2893,7 @@ class OfficeController extends Controller
 
     public function clientFileDownload(string $id): void
     {
+        ModuleAccess::requireModule('files');
         $officeId = (int) Session::get('office_id');
         $clientFilter = $this->getEmployeeClientFilter();
         $fileId = (int) $id;
@@ -2897,6 +2937,7 @@ class OfficeController extends Controller
 
     public function clientFileDelete(string $id): void
     {
+        ModuleAccess::requireModule('files');
         $fileId = (int) $id;
         $fileRecord = ClientFile::findById($fileId);
 
@@ -2939,6 +2980,7 @@ class OfficeController extends Controller
 
     public function clientFileStoragePath(string $id): void
     {
+        ModuleAccess::requireModule('files');
         $clientId = (int) $id;
 
         if (!$this->validateCsrf()) {
