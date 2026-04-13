@@ -303,6 +303,20 @@
                 </a>
                 <?php endif; ?>
 
+                <?php if ($canModule('hr')): ?>
+                <div class="sidebar-group-label">Kadry i Płace</div>
+                <a href="/office/hr" class="sidebar-link <?= $currentPath === '/office/hr' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    Panel HR
+                </a>
+                <?php if ($canModule('payroll-calc')): ?>
+                <a href="/office/hr/calculator" class="sidebar-link <?= $currentPath === '/office/hr/calculator' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="12" y1="10" x2="14" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="12" y1="14" x2="14" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="12" y1="18" x2="16" y2="18"/></svg>
+                    Kalkulator płac
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
+
                 <div class="sidebar-group-label"><?= $lang('nav_system') ?></div>
                 <?php if (!$isEmployee): ?>
                 <a href="/office/settings" class="sidebar-link <?= $currentPath === '/office/settings' ? 'active' : '' ?>">
@@ -438,6 +452,32 @@
                     <?= $lang('calculators') ?>
                 </a>
                 -->
+
+                <?php if ($canModule('hr')): ?>
+                <div class="sidebar-group-label">Kadry i Płace</div>
+                <a href="/client/hr/employees" class="sidebar-link <?= $currentPath === '/client/hr/employees' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    Pracownicy
+                </a>
+                <?php if ($canModule('payroll-lists')): ?>
+                <a href="/client/hr/payroll" class="sidebar-link <?= str_starts_with($currentPath, '/client/hr/payroll') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Listy płac
+                </a>
+                <?php endif; ?>
+                <?php if ($canModule('payroll-leave')): ?>
+                <a href="/client/hr/leaves" class="sidebar-link <?= str_starts_with($currentPath, '/client/hr/leaves') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Urlopy
+                </a>
+                <?php endif; ?>
+                <?php if ($canModule('payroll-pit') || $canModule('payroll-zus')): ?>
+                <a href="/client/hr/declarations" class="sidebar-link <?= str_starts_with($currentPath, '/client/hr/declarations') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Deklaracje
+                </a>
+                <?php endif; ?>
+                <?php endif; ?>
 
                 <div class="sidebar-group-label"><?= $lang('nav_system') ?></div>
                 <?php if ($canModule('ksef')): ?>

@@ -8,7 +8,8 @@ class ModuleAccess
 {
     /**
      * Check if the current user has access to a module.
-     * Admin always has access. Office/Employee/Client check their office.
+     * Admin always has access. Office/Employee check their office.
+     * Client checks both office AND client-level module settings (cascade).
      */
     public static function isEnabled(string $slug): bool
     {
@@ -19,6 +20,14 @@ class ModuleAccess
         $officeId = self::getCurrentOfficeId();
         if ($officeId === null) {
             return true; // No office context = no restriction
+        }
+
+        // For clients: check cascading office → client module access
+        if (Auth::isClient()) {
+            $clientId = self::getCurrentClientId();
+            if ($clientId !== null) {
+                return Module::isEnabledForClient($clientId, $officeId, $slug);
+            }
         }
 
         return Module::isEnabledForOffice($officeId, $slug);
@@ -41,6 +50,15 @@ class ModuleAccess
     }
 
     /**
+     * Require HR parent module + specific payroll sub-module.
+     */
+    public static function requireHrModule(string $subModuleSlug): void
+    {
+        self::requireModule('hr');
+        self::requireModule($subModuleSlug);
+    }
+
+    /**
      * Get list of enabled module slugs for the current session.
      * Returns ['*'] for admin (all access).
      */
@@ -53,6 +71,14 @@ class ModuleAccess
         $officeId = self::getCurrentOfficeId();
         if ($officeId === null) {
             return ['*'];
+        }
+
+        // For clients: return client-level filtered slugs
+        if (Auth::isClient()) {
+            $clientId = self::getCurrentClientId();
+            if ($clientId !== null) {
+                return Module::getEnabledSlugsForClient($clientId, $officeId);
+            }
         }
 
         return Module::getEnabledSlugsForOffice($officeId);
@@ -77,5 +103,14 @@ class ModuleAccess
         }
 
         return null;
+    }
+
+    /**
+     * Get the client ID for the current session context.
+     */
+    private static function getCurrentClientId(): ?int
+    {
+        $clientId = Session::get('client_id');
+        return $clientId ? (int)$clientId : null;
     }
 }

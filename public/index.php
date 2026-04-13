@@ -81,6 +81,8 @@ $router->post('/admin/clients/{id}/toggle-active', [AdminController::class, 'cli
 $router->post('/admin/clients/{id}/reset-password', [AdminController::class, 'clientResetPassword']);
 $router->get('/admin/clients/{id}/cost-centers', [AdminController::class, 'clientCostCenters']);
 $router->post('/admin/clients/{id}/cost-centers', [AdminController::class, 'clientCostCentersUpdate']);
+$router->get('/admin/clients/{id}/modules', [AdminController::class, 'clientModules']);
+$router->post('/admin/clients/{id}/modules', [AdminController::class, 'clientModulesUpdate']);
 $router->get('/admin/clients/bulk-import', [AdminController::class, 'bulkImportForm']);
 $router->post('/admin/clients/bulk-import', [AdminController::class, 'bulkImport']);
 $router->get('/admin/offices', [AdminController::class, 'offices']);
@@ -260,6 +262,34 @@ $router->get('/office/duplicates', [OfficeController::class, 'duplicatesReport']
 $router->post('/office/duplicates/scan', [OfficeController::class, 'duplicatesScan']);
 $router->post('/office/duplicates/{id}/review', [OfficeController::class, 'duplicateReview']);
 
+// Office: HR / Kadry i Płace
+$router->get('/office/hr', [OfficeController::class, 'hrDashboard']);
+$router->get('/office/hr/calculator', [OfficeController::class, 'hrPayrollCalculator']);
+$router->get('/office/hr/{clientId}/employees', [OfficeController::class, 'hrEmployees']);
+$router->get('/office/hr/{clientId}/employees/create', [OfficeController::class, 'hrEmployeeCreate']);
+$router->post('/office/hr/{clientId}/employees/create', [OfficeController::class, 'hrEmployeeStore']);
+$router->get('/office/hr/{clientId}/employees/{employeeId}/edit', [OfficeController::class, 'hrEmployeeEdit']);
+$router->post('/office/hr/{clientId}/employees/{employeeId}/update', [OfficeController::class, 'hrEmployeeUpdate']);
+$router->get('/office/hr/{clientId}/contracts', [OfficeController::class, 'hrContracts']);
+$router->get('/office/hr/{clientId}/contracts/create', [OfficeController::class, 'hrContractCreate']);
+$router->post('/office/hr/{clientId}/contracts/create', [OfficeController::class, 'hrContractStore']);
+$router->get('/office/hr/contracts/{id}/edit', [OfficeController::class, 'hrContractEdit']);
+$router->post('/office/hr/contracts/{id}/update', [OfficeController::class, 'hrContractUpdate']);
+$router->get('/office/hr/{clientId}/payroll', [OfficeController::class, 'hrPayrollList']);
+$router->post('/office/hr/{clientId}/payroll/generate', [OfficeController::class, 'hrPayrollGenerate']);
+$router->get('/office/hr/payroll/{id}', [OfficeController::class, 'hrPayrollDetail']);
+$router->post('/office/hr/payroll/{id}/approve', [OfficeController::class, 'hrPayrollApprove']);
+$router->get('/office/hr/payroll/{id}/pdf', [OfficeController::class, 'hrPayrollPdf']);
+$router->get('/office/hr/payroll/entry/{id}/pdf', [OfficeController::class, 'hrPayslipPdf']);
+$router->get('/office/hr/{clientId}/leaves', [OfficeController::class, 'hrLeaves']);
+$router->get('/office/hr/{clientId}/leaves/create', [OfficeController::class, 'hrLeaveCreate']);
+$router->post('/office/hr/{clientId}/leaves/create', [OfficeController::class, 'hrLeaveStore']);
+$router->post('/office/hr/leaves/{id}/approve', [OfficeController::class, 'hrLeaveApprove']);
+$router->post('/office/hr/leaves/{id}/reject', [OfficeController::class, 'hrLeaveReject']);
+$router->get('/office/hr/{clientId}/declarations', [OfficeController::class, 'hrDeclarations']);
+$router->post('/office/hr/{clientId}/declarations/generate', [OfficeController::class, 'hrDeclarationGenerate']);
+$router->get('/office/hr/declarations/{id}/download', [OfficeController::class, 'hrDeclarationDownload']);
+
 // ── Client Routes (/client) ────────────────────────
 $router->get('/client', [ClientController::class, 'dashboard']);
 $router->get('/client/invoices/detail', [ClientController::class, 'getInvoiceDetail']);
@@ -326,6 +356,16 @@ $router->get('/client/tax-payments', [ClientController::class, 'taxPayments']);
 // Client: Tax Calendar (F1)
 $router->get('/client/tax-calendar', [ClientController::class, 'taxCalendar']);
 $router->get('/client/calculators', [ClientController::class, 'calculators']);
+
+// Client: HR / Kadry i Płace (read-only + leave requests)
+$router->get('/client/hr/employees', [ClientController::class, 'hrEmployees']);
+$router->get('/client/hr/payroll', [ClientController::class, 'hrPayrollLists']);
+$router->get('/client/hr/payroll/{id}', [ClientController::class, 'hrPayrollDetail']);
+$router->get('/client/hr/payroll/{id}/pdf', [ClientController::class, 'hrPayrollPdf']);
+$router->get('/client/hr/leaves', [ClientController::class, 'hrLeaves']);
+$router->post('/client/hr/leaves/request', [ClientController::class, 'hrLeaveRequest']);
+$router->get('/client/hr/declarations', [ClientController::class, 'hrDeclarations']);
+$router->get('/client/hr/declarations/{id}/download', [ClientController::class, 'hrDeclarationDownload']);
 
 // Client: Duplicate check AJAX (F2)
 $router->post('/client/sales/check-duplicate', [ClientController::class, 'checkSalesInvoiceDuplicate']);

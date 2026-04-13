@@ -307,6 +307,45 @@ class AdminController extends Controller
         $this->redirect("/admin/offices/{$id}/modules");
     }
 
+    // ── Client Module Management ─────────────────────
+
+    public function clientModules(string $id): void
+    {
+        $client = Client::findById((int) $id);
+        if (!$client) { $this->redirect('/admin/clients'); return; }
+
+        $officeId = (int) ($client['office_id'] ?? 0);
+        $modules = Module::getClientModuleMatrix((int) $id, $officeId);
+        $this->render('admin/client_modules', [
+            'client' => $client,
+            'modules' => $modules,
+        ]);
+    }
+
+    public function clientModulesUpdate(string $id): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect("/admin/clients/{$id}/modules"); return; }
+
+        $client = Client::findById((int) $id);
+        if (!$client) { $this->redirect('/admin/clients'); return; }
+
+        $enabledSlugs = $_POST['modules'] ?? [];
+        $allModules = Module::findAll(true);
+
+        foreach ($allModules as $mod) {
+            $enabled = in_array($mod['slug'], $enabledSlugs, true);
+            if (!empty($mod['is_system'])) {
+                $enabled = true;
+            }
+            Module::setClientModule((int) $id, (int) $mod['id'], $enabled, Auth::currentUserId());
+        }
+
+        AuditLog::log('admin', Auth::currentUserId(), 'client_modules_updated',
+            'Modules updated for client: ' . ($client['company_name'] ?? $client['name'] ?? '') . ' (ID: ' . $id . ')', 'client', (int) $id);
+        Session::flash('success', 'modules_saved');
+        $this->redirect("/admin/clients/{$id}/modules");
+    }
+
     public function testOfficeSmtp(string $id): void
     {
         if (!$this->validateCsrf()) { $this->json(['error' => 'CSRF'], 403); return; }
