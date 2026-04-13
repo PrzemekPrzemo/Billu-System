@@ -1,6 +1,6 @@
 # INSTRUKCJA OBSLUGI - PANEL BIURA KSIEGOWEGO
 
-## BiLLU Financial Solutions - portal.faktupilot.pl
+## BiLLU Financial Solutions - portal.billu.pl
 
 ---
 
@@ -12,7 +12,7 @@ Dane logowania (NIP lub e-mail oraz haslo) otrzymasz od administratora systemu B
 
 ### 1.2 Logowanie
 
-1. Wejdz na strone: **https://portal.faktupilot.pl**
+1. Wejdz na strone: **https://portal.billu.pl**
 2. Wybierz typ uzytkownika: **Biuro ksiegowe**
 3. Wpisz swoj **NIP** lub **adres e-mail**
 4. Wpisz **haslo**

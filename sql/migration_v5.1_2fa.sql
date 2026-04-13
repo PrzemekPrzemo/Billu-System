@@ -1,4 +1,4 @@
--- FaktuPilot v5.1 - Two-Factor Authentication (TOTP)
+-- BiLLU v5.1 - Two-Factor Authentication (TOTP)
 
 -- Add 2FA columns to users (admin) table
 ALTER TABLE users

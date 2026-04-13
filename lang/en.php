@@ -1883,4 +1883,9 @@ return [
     'hr_remaining'             => 'Remaining',
     'modules_for_client'       => 'Modules for Client',
     'blocked_by_office'        => 'Blocked by Office',
+
+    // Module bundles
+    'module_bundles'           => 'Module Bundles',
+    'bundle_assigned'          => 'Bundle assigned to office successfully',
+    'invalid_bundle_or_office' => 'Invalid bundle or office',
 ];

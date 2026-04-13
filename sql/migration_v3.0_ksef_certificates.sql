@@ -1,4 +1,4 @@
--- FaktuPilot v3.0 - KSeF Certificate Authentication & Full API Integration
+-- BiLLU v3.0 - KSeF Certificate Authentication & Full API Integration
 -- Migration: Adds client certificate storage, KSeF sessions, and extended operations
 
 -- ============================================================

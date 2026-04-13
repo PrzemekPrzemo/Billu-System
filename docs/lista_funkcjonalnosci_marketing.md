@@ -275,7 +275,7 @@ akceptacje i raportowanie faktur z pelna integracja z Krajowym Systemem e-Faktur
 - Kompatybilny z Plesk (automatyczna konfiguracja)
 - Automatyczny instalator (skrypt bash)
 - Automatyczny updater (deploy.sh)
-- Domena: portal.faktupilot.pl
+- Domena: portal.billu.pl
 
 ### 5.3 Przegladarka klienta
 

@@ -1,6 +1,6 @@
 {
-    "name": "biuro-ksiegowe/faktury-ksef",
-    "description": "System weryfikacji faktur KSeF dla biura księgowego",
+    "name": "billu/financial-solutions",
+    "description": "BiLLU Financial Solutions - system weryfikacji faktur z integracją KSeF",
     "type": "project",
     "require": {
         "php": ">=8.1",

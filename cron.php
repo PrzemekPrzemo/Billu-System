@@ -4,7 +4,7 @@
  * Cron job script - run daily.
  *
  * Crontab entry:
- * 0 8 * * * php /path/to/faktury-ksef/cron.php
+ * 0 8 * * * php /path/to/billu/cron.php
  */
 
 declare(strict_types=1);

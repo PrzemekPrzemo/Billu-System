@@ -103,7 +103,7 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <?php if ($canModule('payroll-employees')): ?>
+                            <?php if ($canModule('hr')): ?>
                                 <a href="/office/hr/<?= $c['id'] ?>/employees" class="btn btn-xs">Pracownicy</a>
                             <?php endif; ?>
                             <?php if ($canModule('payroll-contracts')): ?>
@@ -112,10 +112,10 @@
                             <?php if ($canModule('payroll-lists')): ?>
                                 <a href="/office/hr/<?= $c['id'] ?>/payroll" class="btn btn-xs">Listy plac</a>
                             <?php endif; ?>
-                            <?php if ($canModule('payroll-leaves')): ?>
+                            <?php if ($canModule('payroll-leave')): ?>
                                 <a href="/office/hr/<?= $c['id'] ?>/leaves" class="btn btn-xs">Urlopy</a>
                             <?php endif; ?>
-                            <?php if ($canModule('payroll-declarations')): ?>
+                            <?php if ($canModule('payroll-pit')): ?>
                                 <a href="/office/hr/<?= $c['id'] ?>/declarations" class="btn btn-xs">Deklaracje</a>
                             <?php endif; ?>
                         </div>
@@ -127,7 +127,7 @@
     </div>
 </div>
 
-<?php if ($canModule('payroll-calculator')): ?>
+<?php if ($canModule('payroll-calc')): ?>
 <div style="margin-top:20px;">
     <a href="/office/hr/calculator" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>

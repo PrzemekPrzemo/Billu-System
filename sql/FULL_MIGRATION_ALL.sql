@@ -1115,5 +1115,65 @@ WHERE m.slug IN ('payroll-calc', 'payroll-lists', 'payroll-contracts', 'payroll-
 ON DUPLICATE KEY UPDATE is_enabled = is_enabled;
 
 -- ══════════════════════════════════════════════
+-- 31. COMMERCIAL MODULE SYSTEM (v31.0)
+-- ══════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS module_dependencies (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    module_id INT UNSIGNED NOT NULL,
+    depends_on_module_id INT UNSIGNED NOT NULL,
+    dependency_type ENUM('required', 'recommended') NOT NULL DEFAULT 'required',
+    UNIQUE KEY unique_dep (module_id, depends_on_module_id),
+    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+    FOREIGN KEY (depends_on_module_id) REFERENCES modules(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS module_bundles (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT DEFAULT NULL,
+    modules_json JSON NOT NULL,
+    price_monthly DECIMAL(10,2) DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE office_modules ADD COLUMN IF NOT EXISTS bundle_id INT UNSIGNED DEFAULT NULL;
+ALTER TABLE office_modules ADD COLUMN IF NOT EXISTS expires_at DATETIME DEFAULT NULL;
+
+-- Seed module dependencies
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'sales' AND m2.slug = 'company-profile';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'sales' AND m2.slug = 'contractors';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'ksef' AND m2.slug = 'invoices';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'analytics' AND m2.slug = 'invoices';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'reports' AND m2.slug = 'invoices';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'erp-export' AND m2.slug = 'invoices';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'duplicates' AND m2.slug = 'invoices';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2
+WHERE m1.slug IN ('payroll-calc','payroll-lists','payroll-contracts','payroll-leave','payroll-pit','payroll-zus') AND m2.slug = 'hr';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'required' FROM modules m1, modules m2 WHERE m1.slug = 'payroll-lists' AND m2.slug = 'payroll-calc';
+INSERT IGNORE INTO module_dependencies (module_id, depends_on_module_id, dependency_type)
+SELECT m1.id, m2.id, 'recommended' FROM modules m1, modules m2 WHERE m1.slug = 'sales' AND m2.slug = 'ksef';
+
+-- Seed commercial bundles
+INSERT IGNORE INTO module_bundles (name, slug, description, modules_json, price_monthly, sort_order) VALUES
+('Starter', 'starter', 'Weryfikacja faktur, kontrahenci, komunikacja', '["invoices","security","contractors","company-profile","messages","files"]', 99.00, 1),
+('Professional', 'professional', 'Fakturowanie, KSeF, duplikaty, kalendarz podatkowy', '["invoices","security","contractors","company-profile","messages","files","sales","ksef","duplicates","tax-calendar"]', 249.00, 2),
+('Tax & Finance', 'tax-finance', 'Pełna obsługa podatkowa z raportami i eksportem', '["invoices","security","contractors","company-profile","messages","files","sales","ksef","duplicates","tax-calendar","tax-calculator","tax-payments","reports","analytics","erp-export"]', 399.00, 3),
+('HR & Payroll', 'hr-payroll', 'Kadry i płace: pracownicy, umowy, listy płac, deklaracje', '["invoices","security","messages","files","hr","payroll-calc","payroll-lists","payroll-contracts","payroll-leave","payroll-pit","payroll-zus"]', 299.00, 4),
+('Enterprise', 'enterprise', 'Pełny dostęp do wszystkich modułów BiLLU', '["invoices","security","contractors","company-profile","messages","files","tasks","sales","ksef","duplicates","tax-calendar","tax-calculator","tax-payments","reports","analytics","erp-export","hr","payroll-calc","payroll-lists","payroll-contracts","payroll-leave","payroll-pit","payroll-zus"]', 549.00, 5);
+
+-- ══════════════════════════════════════════════
 -- DONE! All migrations applied.
 -- ══════════════════════════════════════════════

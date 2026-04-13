@@ -3037,21 +3037,53 @@ class OfficeController extends Controller
         $clients = Client::findByOffice($officeId);
         $employeeFilter = $this->getEmployeeClientFilter();
         if ($employeeFilter !== null) {
-            $clients = array_filter($clients, fn($c) => in_array((int)$c['id'], $employeeFilter));
+            $clients = array_values(array_filter($clients, fn($c) => in_array((int)$c['id'], $employeeFilter)));
         }
 
-        $clientStats = [];
-        foreach ($clients as $c) {
+        $db = \App\Core\Database::getInstance();
+        $totals = ['employees' => 0, 'contracts' => 0, 'payrolls_pending' => 0, 'leaves_pending' => 0];
+
+        foreach ($clients as &$c) {
             $cid = (int)$c['id'];
-            $clientStats[$cid] = [
-                'employee_count' => ClientEmployee::countByClient($cid),
-                'contract_count' => count(EmployeeContract::findActiveByClient($cid)),
-            ];
+            $empCount = ClientEmployee::countByClient($cid);
+            $contractCount = count(EmployeeContract::findActiveByClient($cid));
+
+            $c['employee_count'] = $empCount;
+            $c['active_contracts'] = $contractCount;
+            $totals['employees'] += $empCount;
+            $totals['contracts'] += $contractCount;
+
+            // Last payroll info
+            $lastPayroll = $db->fetchOne(
+                "SELECT status, CONCAT(LPAD(month,2,'0'), '/', year) as period
+                 FROM payroll_lists WHERE client_id = ? ORDER BY year DESC, month DESC LIMIT 1",
+                [$cid]
+            );
+            $c['last_payroll_status'] = $lastPayroll['status'] ?? null;
+            $c['last_payroll_period'] = $lastPayroll['period'] ?? null;
+        }
+        unset($c);
+
+        // Count pending payrolls and leaves across all clients
+        $clientIds = array_map(fn($c) => (int)$c['id'], $clients);
+        if ($clientIds) {
+            $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+            $pp = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM payroll_lists WHERE client_id IN ({$placeholders}) AND status = 'calculated'",
+                $clientIds
+            );
+            $totals['payrolls_pending'] = (int)($pp['cnt'] ?? 0);
+
+            $lp = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM employee_leaves WHERE client_id IN ({$placeholders}) AND status = 'pending'",
+                $clientIds
+            );
+            $totals['leaves_pending'] = (int)($lp['cnt'] ?? 0);
         }
 
         $this->render('office/hr_dashboard', [
             'clients' => $clients,
-            'clientStats' => $clientStats,
+            'totals' => $totals,
         ]);
     }
 
@@ -3104,7 +3136,7 @@ class OfficeController extends Controller
         ];
 
         ClientEmployee::create($data);
-        AuditLog::log(Auth::userType(), Auth::currentUserId(), 'hr_employee_created',
+        AuditLog::log(Auth::currentUserType(), Auth::currentUserId(), 'hr_employee_created',
             "Employee created: {$data['first_name']} {$data['last_name']}", 'client', (int)$clientId);
         Session::flash('success', 'hr_employee_saved');
         $this->redirect("/office/hr/{$clientId}/employees");
@@ -3210,7 +3242,7 @@ class OfficeController extends Controller
             'end_date' => $_POST['end_date'] ?: null,
             'status' => $_POST['status'] ?? 'draft',
             'notes' => $this->sanitize($_POST['notes'] ?? ''),
-            'created_by_type' => Auth::userType(),
+            'created_by_type' => Auth::currentUserType(),
             'created_by_id' => Auth::currentUserId(),
         ];
 
@@ -3309,7 +3341,7 @@ class OfficeController extends Controller
 
         $listId = PayrollListService::generateForMonth(
             (int)$clientId, $year, $month,
-            Auth::userType(), Auth::currentUserId()
+            Auth::currentUserType(), Auth::currentUserId()
         );
 
         if ($listId) {
@@ -3342,7 +3374,7 @@ class OfficeController extends Controller
         ModuleAccess::requireHrModule('payroll-lists');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/payroll/{$listId}"); return; }
 
-        PayrollList::approve((int)$listId, Auth::userType(), Auth::currentUserId());
+        PayrollList::approve((int)$listId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_payroll_approved');
         $this->redirect("/office/hr/payroll/{$listId}");
     }
@@ -3443,7 +3475,7 @@ class OfficeController extends Controller
         $leave = EmployeeLeave::findById((int)$leaveId);
         if (!$leave) { $this->redirect('/office/hr'); return; }
 
-        LeaveService::approveLeave((int)$leaveId, Auth::userType(), Auth::currentUserId());
+        LeaveService::approveLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_leave_approved');
         $this->redirect("/office/hr/{$leave['client_id']}/leaves");
     }
@@ -3456,7 +3488,7 @@ class OfficeController extends Controller
         $leave = EmployeeLeave::findById((int)$leaveId);
         if (!$leave) { $this->redirect('/office/hr'); return; }
 
-        LeaveService::rejectLeave((int)$leaveId, Auth::userType(), Auth::currentUserId());
+        LeaveService::rejectLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_leave_rejected');
         $this->redirect("/office/hr/{$leave['client_id']}/leaves");
     }

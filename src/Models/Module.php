@@ -146,6 +146,149 @@ class Module
         }
     }
 
+    // ── Module dependencies & bundles ──────────────────────
+
+    /**
+     * Get required dependencies for a module (slugs that must be enabled).
+     */
+    public static function getRequiredDependencies(int $moduleId): array
+    {
+        return Database::getInstance()->fetchAll(
+            "SELECT m.id, m.slug, m.name
+             FROM module_dependencies md
+             INNER JOIN modules m ON m.id = md.depends_on_module_id
+             WHERE md.module_id = ? AND md.dependency_type = 'required'",
+            [$moduleId]
+        );
+    }
+
+    /**
+     * Get modules that depend on a given module (will break if this is disabled).
+     */
+    public static function getDependentModules(int $moduleId): array
+    {
+        return Database::getInstance()->fetchAll(
+            "SELECT m.id, m.slug, m.name
+             FROM module_dependencies md
+             INNER JOIN modules m ON m.id = md.module_id
+             WHERE md.depends_on_module_id = ? AND md.dependency_type = 'required'",
+            [$moduleId]
+        );
+    }
+
+    /**
+     * Get full dependency map: module_slug => [required_slug, ...].
+     */
+    public static function getDependencyMap(): array
+    {
+        $rows = Database::getInstance()->fetchAll(
+            "SELECT m1.slug as module_slug, m2.slug as depends_on_slug, md.dependency_type
+             FROM module_dependencies md
+             INNER JOIN modules m1 ON m1.id = md.module_id
+             INNER JOIN modules m2 ON m2.id = md.depends_on_module_id
+             ORDER BY m1.slug"
+        );
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[$r['module_slug']][] = [
+                'slug' => $r['depends_on_slug'],
+                'type' => $r['dependency_type'],
+            ];
+        }
+        return $map;
+    }
+
+    /**
+     * Enable a module for an office with auto-cascade of required dependencies.
+     * Returns array of additionally enabled module slugs.
+     */
+    public static function enableWithDependencies(int $officeId, int $moduleId, ?int $enabledById = null): array
+    {
+        $autoEnabled = [];
+        $deps = self::getRequiredDependencies($moduleId);
+
+        foreach ($deps as $dep) {
+            if (!self::isEnabledForOffice($officeId, $dep['slug'])) {
+                self::setOfficeModule($officeId, (int)$dep['id'], true, $enabledById);
+                $autoEnabled[] = $dep['slug'];
+                // Recursively enable dependencies of dependencies
+                $nested = self::enableWithDependencies($officeId, (int)$dep['id'], $enabledById);
+                $autoEnabled = array_merge($autoEnabled, $nested);
+            }
+        }
+
+        self::setOfficeModule($officeId, $moduleId, true, $enabledById);
+        return array_unique($autoEnabled);
+    }
+
+    /**
+     * Disable a module for an office with auto-cascade of dependent modules.
+     * Returns array of additionally disabled module slugs.
+     */
+    public static function disableWithDependents(int $officeId, int $moduleId, ?int $enabledById = null): array
+    {
+        $autoDisabled = [];
+        $dependents = self::getDependentModules($moduleId);
+
+        foreach ($dependents as $dep) {
+            if (self::isEnabledForOffice($officeId, $dep['slug'])) {
+                $nested = self::disableWithDependents($officeId, (int)$dep['id'], $enabledById);
+                $autoDisabled = array_merge($autoDisabled, $nested);
+                self::setOfficeModule($officeId, (int)$dep['id'], false, $enabledById);
+                $autoDisabled[] = $dep['slug'];
+            }
+        }
+
+        self::setOfficeModule($officeId, $moduleId, false, $enabledById);
+        return array_unique($autoDisabled);
+    }
+
+    /**
+     * Apply a bundle to an office — enable exactly the modules in the bundle, disable others.
+     */
+    public static function applyBundle(int $officeId, int $bundleId, ?int $enabledById = null): void
+    {
+        $db = Database::getInstance();
+        $bundle = $db->fetchOne("SELECT * FROM module_bundles WHERE id = ?", [$bundleId]);
+        if (!$bundle) return;
+
+        $bundleSlugs = json_decode($bundle['modules_json'], true) ?: [];
+        $allModules = self::findAll(true);
+
+        foreach ($allModules as $mod) {
+            $enabled = in_array($mod['slug'], $bundleSlugs, true) || !empty($mod['is_system']);
+            self::setOfficeModule($officeId, (int)$mod['id'], $enabled, $enabledById);
+
+            // Tag with bundle_id
+            if ($enabled) {
+                $db->query(
+                    "UPDATE office_modules SET bundle_id = ? WHERE office_id = ? AND module_id = ?",
+                    [$bundleId, $officeId, $mod['id']]
+                );
+            }
+        }
+    }
+
+    /**
+     * Get all bundles.
+     */
+    public static function getBundles(bool $activeOnly = true): array
+    {
+        $sql = "SELECT * FROM module_bundles";
+        if ($activeOnly) $sql .= " WHERE is_active = 1";
+        $sql .= " ORDER BY sort_order ASC";
+        return Database::getInstance()->fetchAll($sql);
+    }
+
+    /**
+     * Find bundle by ID.
+     */
+    public static function findBundleById(int $id): ?array
+    {
+        return Database::getInstance()->fetchOne("SELECT * FROM module_bundles WHERE id = ?", [$id]);
+    }
+
     // ── Client-level module management ─────────────────────
 
     /**

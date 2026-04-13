@@ -136,8 +136,8 @@ DB_HOST=${DB_HOST:-localhost}
 read -rp "   Database port [3306]: " DB_PORT
 DB_PORT=${DB_PORT:-3306}
 
-read -rp "   Database name [faktury_ksef]: " DB_NAME
-DB_NAME=${DB_NAME:-faktury_ksef}
+read -rp "   Database name [billu]: " DB_NAME
+DB_NAME=${DB_NAME:-billu}
 
 read -rp "   Database username [root]: " DB_USER
 DB_USER=${DB_USER:-root}

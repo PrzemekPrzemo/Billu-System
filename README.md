@@ -1,4 +1,4 @@
-# 📋 Faktury KSeF - System Weryfikacji Faktur
+# 📋 BiLLU Financial Solutions
 
 **Kompleksowy system zarządzania i weryfikacji faktur dla biur księgowych z integracją KSeF (Krajowy System e-Faktur).**
 
@@ -23,7 +23,7 @@
 
 ## 🎯 Przegląd
 
-**Faktury KSeF** to nowoczesny system internetowy do zarządzania fakturami i ich weryfikacji, dedykowany polskim biurom księgowym. System integruje się z platformą KSeF (Krajowy System e-Faktur) w celu usprawnienia przetwarzania, weryfikacji i raportowania faktur.
+**BiLLU Financial Solutions** to nowoczesny system internetowy do zarządzania fakturami i ich weryfikacji, dedykowany polskim biurom księgowym. System integruje się z platformą KSeF (Krajowy System e-Faktur) w celu usprawnienia przetwarzania, weryfikacji i raportowania faktur.
 
 ### Główne cele
 - ✅ Centralizacja weryfikacji i zarządzania fakturami

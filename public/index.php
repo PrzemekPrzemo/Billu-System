@@ -85,6 +85,8 @@ $router->get('/admin/clients/{id}/modules', [AdminController::class, 'clientModu
 $router->post('/admin/clients/{id}/modules', [AdminController::class, 'clientModulesUpdate']);
 $router->get('/admin/clients/bulk-import', [AdminController::class, 'bulkImportForm']);
 $router->post('/admin/clients/bulk-import', [AdminController::class, 'bulkImport']);
+$router->get('/admin/module-bundles', [AdminController::class, 'moduleBundles']);
+$router->post('/admin/module-bundles/assign', [AdminController::class, 'moduleBundleAssign']);
 $router->get('/admin/offices', [AdminController::class, 'offices']);
 $router->get('/admin/offices/create', [AdminController::class, 'officeCreateForm']);
 $router->post('/admin/offices/create', [AdminController::class, 'officeCreate']);

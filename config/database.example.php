@@ -3,7 +3,7 @@
 return [
     'host'     => 'localhost',
     'port'     => 3306,
-    'database' => 'faktury_ksef',
+    'database' => 'billu',
     'username' => 'root',
     'password' => '',
     'charset'  => 'utf8mb4',

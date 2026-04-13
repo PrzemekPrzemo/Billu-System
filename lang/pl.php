@@ -1884,4 +1884,9 @@ return [
     'hr_remaining'             => 'Pozostało',
     'modules_for_client'       => 'Moduły dla klienta',
     'blocked_by_office'        => 'Zablokowane przez biuro',
+
+    // Module bundles
+    'module_bundles'           => 'Pakiety modułów',
+    'bundle_assigned'          => 'Pakiet został przypisany do biura',
+    'invalid_bundle_or_office' => 'Nieprawidłowy pakiet lub biuro',
 ];
