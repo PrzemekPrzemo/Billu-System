@@ -1806,4 +1806,22 @@ return [
     'rodo_account_deleted'         => 'Twoje konto i wszystkie dane zostały trwale usunięte.',
     'rodo_client_deleted'          => 'Klient i wszystkie jego dane zostały trwale usunięte.',
     'invalid_password'             => 'Nieprawidłowe hasło.',
+
+    // Module Management
+    'modules_management'       => 'Zarządzanie modułami',
+    'modules_for_office'       => 'Moduły dla biura',
+    'modules_saved'            => 'Konfiguracja modułów została zapisana.',
+    'module_enabled'           => 'Włączony',
+    'module_disabled'          => 'Wyłączony',
+    'module_not_available'     => 'Ten moduł nie jest dostępny dla Twojego biura.',
+    'select_all_modules'       => 'Zaznacz wszystkie',
+    'deselect_all_modules'     => 'Odznacz wszystkie',
+    'back_to_edit'             => 'Powrót do edycji',
+    'module_cat_core'          => 'Podstawowe',
+    'module_cat_tax'           => 'Podatki',
+    'module_cat_communication' => 'Komunikacja',
+    'module_cat_reporting'     => 'Raporty i eksport',
+    'module_cat_tools'         => 'Narzędzia',
+    'module_cat_hr'            => 'Kadry',
+    'module_cat_system'        => 'System',
 ];

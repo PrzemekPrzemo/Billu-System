@@ -87,6 +87,8 @@ $router->get('/admin/offices', [AdminController::class, 'offices']);
 $router->get('/admin/offices/create', [AdminController::class, 'officeCreateForm']);
 $router->post('/admin/offices/create', [AdminController::class, 'officeCreate']);
 $router->get('/admin/offices/{id}/edit', [AdminController::class, 'officeEditForm']);
+$router->get('/admin/offices/{id}/modules', [AdminController::class, 'officeModules']);
+$router->post('/admin/offices/{id}/modules', [AdminController::class, 'officeModulesUpdate']);
 $router->post('/admin/offices/{id}/update', [AdminController::class, 'officeUpdate']);
 $router->post('/admin/offices/{id}/toggle-active', [AdminController::class, 'officeToggleActive']);
 $router->post('/admin/offices/{id}/reset-password', [AdminController::class, 'officeResetPassword']);

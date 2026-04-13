@@ -225,6 +225,12 @@
     <div class="form-actions">
         <button type="submit" class="btn btn-primary"><?= $lang('save') ?></button>
         <a href="/admin/offices" class="btn btn-secondary"><?= $lang('cancel') ?></a>
+        <?php if ($office): ?>
+        <a href="/admin/offices/<?= $office['id'] ?>/modules" class="btn btn-secondary" style="margin-left:auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <?= $lang('modules_management') ?>
+        </a>
+        <?php endif; ?>
     </div>
 </form>
 

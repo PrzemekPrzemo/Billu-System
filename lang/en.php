@@ -1805,4 +1805,22 @@ return [
     'rodo_account_deleted'         => 'Your account and all data have been permanently deleted.',
     'rodo_client_deleted'          => 'Client and all their data have been permanently deleted.',
     'invalid_password'             => 'Incorrect password.',
+
+    // Module Management
+    'modules_management'       => 'Module Management',
+    'modules_for_office'       => 'Modules for office',
+    'modules_saved'            => 'Module configuration has been saved.',
+    'module_enabled'           => 'Enabled',
+    'module_disabled'          => 'Disabled',
+    'module_not_available'     => 'This module is not available for your office.',
+    'select_all_modules'       => 'Select all',
+    'deselect_all_modules'     => 'Deselect all',
+    'back_to_edit'             => 'Back to edit',
+    'module_cat_core'          => 'Core',
+    'module_cat_tax'           => 'Tax',
+    'module_cat_communication' => 'Communication',
+    'module_cat_reporting'     => 'Reports & Export',
+    'module_cat_tools'         => 'Tools',
+    'module_cat_hr'            => 'HR',
+    'module_cat_system'        => 'System',
 ];

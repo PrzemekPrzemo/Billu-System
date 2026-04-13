@@ -36,6 +36,7 @@ use App\Models\ClientSmtpConfig;
 use App\Models\EmailTemplate;
 use App\Models\IssuedInvoice;
 use App\Core\Pagination;
+use App\Models\Module;
 
 class AdminController extends Controller
 {
@@ -118,7 +119,7 @@ class AdminController extends Controller
             return;
         }
 
-        Office::create([
+        $newOfficeId = Office::create([
             'nip'                 => $nip,
             'name'                => $this->sanitize($_POST['name'] ?? ''),
             'address'             => $this->sanitize($_POST['address'] ?? ''),
@@ -128,7 +129,10 @@ class AdminController extends Controller
             'password_hash'       => Auth::hashPassword($password),
         ]);
 
-        AuditLog::log('admin', Auth::currentUserId(), 'office_created', "NIP: {$nip}", 'office');
+        // Initialize all modules as enabled for the new office
+        Module::initOfficeModules($newOfficeId, Auth::currentUserId());
+
+        AuditLog::log('admin', Auth::currentUserId(), 'office_created', "NIP: {$nip}", 'office', $newOfficeId);
         Session::flash('success', 'office_created');
         $this->redirect('/admin/offices');
     }
@@ -262,6 +266,45 @@ class AdminController extends Controller
             "Password reset for office ID: {$id} ({$office['name']})", 'office', (int)$id);
         Session::flash('success', 'password_reset_by_admin');
         $this->redirect("/admin/offices/{$id}/edit");
+    }
+
+    // ── Office Modules ─────────────────────────────
+
+    public function officeModules(string $id): void
+    {
+        $office = Office::findById((int) $id);
+        if (!$office) { $this->redirect('/admin/offices'); return; }
+
+        $modules = Module::getOfficeModuleMatrix((int) $id);
+        $this->render('admin/office_modules', [
+            'office' => $office,
+            'modules' => $modules,
+        ]);
+    }
+
+    public function officeModulesUpdate(string $id): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect("/admin/offices/{$id}/modules"); return; }
+
+        $office = Office::findById((int) $id);
+        if (!$office) { $this->redirect('/admin/offices'); return; }
+
+        $enabledSlugs = $_POST['modules'] ?? [];
+        $allModules = Module::findAll(true);
+
+        foreach ($allModules as $mod) {
+            $enabled = in_array($mod['slug'], $enabledSlugs, true);
+            // System modules are always enabled
+            if (!empty($mod['is_system'])) {
+                $enabled = true;
+            }
+            Module::setOfficeModule((int) $id, (int) $mod['id'], $enabled, Auth::currentUserId());
+        }
+
+        AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated',
+            'Modules updated for office: ' . $office['name'] . ' (ID: ' . $id . ')', 'office', (int) $id);
+        Session::flash('success', 'modules_saved');
+        $this->redirect("/admin/offices/{$id}/modules");
     }
 
     public function testOfficeSmtp(string $id): void

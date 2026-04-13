@@ -6,6 +6,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Session;
 use App\Core\Language;
+use App\Core\ModuleAccess;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceBatch;
@@ -646,6 +647,7 @@ class ClientController extends Controller
 
     public function ksefConfig(): void
     {
+        ModuleAccess::requireModule('ksef');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
         $config = KsefConfig::findByClientId($clientId);
@@ -681,6 +683,7 @@ class ClientController extends Controller
 
     public function ksefUploadCert(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         $clientId = Session::get('client_id');
@@ -762,6 +765,7 @@ class ClientController extends Controller
 
     public function ksefUploadPem(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         $clientId = Session::get('client_id');
@@ -855,6 +859,7 @@ class ClientController extends Controller
 
     public function ksefDeleteCert(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         $clientId = Session::get('client_id');
@@ -887,6 +892,7 @@ class ClientController extends Controller
 
     public function ksefSaveToken(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         $clientId = Session::get('client_id');
@@ -917,6 +923,7 @@ class ClientController extends Controller
 
     public function ksefSaveEnvironment(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         // Only admin impersonating can change environment
@@ -945,6 +952,7 @@ class ClientController extends Controller
 
     public function ksefToggleUpo(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
         if (!Auth::isImpersonating()) { $this->redirect('/client/ksef'); return; }
         $clientId = (int) Session::get('client_id');
@@ -958,6 +966,7 @@ class ClientController extends Controller
 
     public function ksefTestConnection(): void
     {
+        ModuleAccess::requireModule('ksef');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
 
@@ -978,6 +987,7 @@ class ClientController extends Controller
      */
     public function ksefDiagnostic(): void
     {
+        ModuleAccess::requireModule('ksef');
         // Increase time limit for this diagnostic page
         set_time_limit(120);
 
@@ -1231,6 +1241,7 @@ class ClientController extends Controller
      */
     public function ksefDeleteKsefCert(): void
     {
+        ModuleAccess::requireModule('ksef');
         if (!$this->validateCsrf()) { $this->redirect('/client/ksef'); return; }
 
         $clientId = Session::get('client_id');
@@ -1281,6 +1292,7 @@ class ClientController extends Controller
      */
     public function ksefCertificates(): void
     {
+        ModuleAccess::requireModule('ksef');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
 
@@ -2017,6 +2029,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function companyProfile(): void
     {
+        ModuleAccess::requireModule('company-profile');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
         $profile = CompanyProfile::findByClient($clientId);
@@ -2033,6 +2046,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function companyGusLookup(): void
     {
+        ModuleAccess::requireModule('company-profile');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
 
@@ -2085,6 +2099,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function companyProfileUpdate(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = Session::get('client_id');
 
@@ -2113,6 +2128,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function companyLogoUpload(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = Session::get('client_id');
 
@@ -2163,6 +2179,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function companyLogoDelete(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = Session::get('client_id');
 
@@ -2185,6 +2202,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bankAccountCreate(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = Session::get('client_id');
 
@@ -2218,6 +2236,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bankAccountDelete(int $id): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = Session::get('client_id');
 
@@ -2233,6 +2252,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bankAccountSetDefault(int $id): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { $this->redirect('/client/company'); return; }
         $clientId = (int) Session::get('client_id');
         $type = $_POST['type'] ?? '';
@@ -2257,6 +2277,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bankAccountIdentifyBank(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { http_response_code(403); echo json_encode(['error' => 'csrf']); return; }
 
         header('Content-Type: application/json');
@@ -2270,6 +2291,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bankAccountWhitelistCheck(): void
     {
+        ModuleAccess::requireModule('company-profile');
         if (!$this->validateCsrf()) { http_response_code(403); echo json_encode(['error' => 'csrf']); return; }
 
         header('Content-Type: application/json');
@@ -2305,6 +2327,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function services(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $services = CompanyService::findByClient($clientId, false);
 
@@ -2317,6 +2340,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function serviceCreate(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/services'); return; }
         $clientId = Session::get('client_id');
 
@@ -2343,6 +2367,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function serviceUpdate(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/services'); return; }
         $clientId = Session::get('client_id');
 
@@ -2370,6 +2395,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function serviceDelete(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/services'); return; }
         $clientId = Session::get('client_id');
 
@@ -2387,6 +2413,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractors(): void
     {
+        ModuleAccess::requireModule('contractors');
         $clientId = Session::get('client_id');
         $search = trim($_GET['q'] ?? '');
 
@@ -2403,6 +2430,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorCreateForm(): void
     {
+        ModuleAccess::requireModule('contractors');
         $this->render('client/contractor_form', [
             'isEdit' => false,
             'contractor' => [],
@@ -2412,6 +2440,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorCreate(): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors'); return; }
         $clientId = Session::get('client_id');
 
@@ -2431,6 +2460,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorEditForm(int $id): void
     {
+        ModuleAccess::requireModule('contractors');
         $clientId = Session::get('client_id');
         $contractor = Contractor::findById($id);
 
@@ -2448,6 +2478,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorUpdate(int $id): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors'); return; }
         $clientId = Session::get('client_id');
 
@@ -2467,6 +2498,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorDelete(int $id): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors'); return; }
         $clientId = Session::get('client_id');
 
@@ -2482,6 +2514,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorSearch(): void
     {
+        ModuleAccess::requireModule('contractors');
         $clientId = Session::get('client_id');
         $q = trim($_GET['q'] ?? '');
 
@@ -2494,6 +2527,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorGusLookup(): void
     {
+        ModuleAccess::requireModule('contractors');
         $nip = preg_replace('/[^0-9]/', '', $_GET['nip'] ?? '');
 
         header('Content-Type: application/json');
@@ -2582,6 +2616,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorImportForm(): void
     {
+        ModuleAccess::requireModule('contractors');
         $this->render('client/contractor_import', [
             'error' => Session::getFlash('error'),
             'success' => Session::getFlash('success'),
@@ -2590,6 +2625,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorImport(): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors/import'); return; }
         $clientId = Session::get('client_id');
 
@@ -2630,6 +2666,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorImportTemplate(): void
     {
+        ModuleAccess::requireModule('contractors');
         $spreadsheet = \App\Services\ContractorImportService::generateTemplate();
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="kontrahenci_szablon.xlsx"');
@@ -2641,6 +2678,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorLogoUpload(int $id): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors/' . $id . '/edit'); return; }
         $clientId = Session::get('client_id');
         $contractor = Contractor::findById($id);
@@ -2691,6 +2729,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function contractorLogoDelete(int $id): void
     {
+        ModuleAccess::requireModule('contractors');
         if (!$this->validateCsrf()) { $this->redirect('/client/contractors/' . $id . '/edit'); return; }
         $clientId = Session::get('client_id');
         $contractor = Contractor::findById($id);
@@ -2748,6 +2787,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoices(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $status = $_GET['status'] ?? null;
         $search = trim($_GET['search'] ?? '');
@@ -2766,6 +2806,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceCreate(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
         $profile = CompanyProfile::findByClient($clientId) ?? [];
@@ -2786,6 +2827,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceStore(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
@@ -3030,6 +3072,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceEdit(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
 
@@ -3071,6 +3114,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceUpdate(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
@@ -3290,6 +3334,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceUpo(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = (int) Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
 
@@ -3426,6 +3471,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceDelete(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
@@ -3531,6 +3577,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
      */
     public function getAdvanceInvoices(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $contractorId = (int) ($_GET['contractor_id'] ?? 0);
 
@@ -3552,6 +3599,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceView(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
 
@@ -3576,6 +3624,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceIssue(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
@@ -3599,6 +3648,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceSendKsef(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) {
             $this->json(['error' => 'Invalid CSRF token'], 403);
             return;
@@ -3640,6 +3690,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function bulkSendKsef(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) {
             $this->json(['error' => 'Invalid CSRF token'], 403);
             return;
@@ -3706,6 +3757,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function ksefSendStatus(): void
     {
+        ModuleAccess::requireModule('sales');
         $jobId = $_GET['job_id'] ?? '';
 
         // Support multiple job IDs (comma-separated)
@@ -3733,6 +3785,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function ksefBackfill(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) {
             $this->json(['error' => 'Invalid CSRF token'], 403);
             return;
@@ -3984,6 +4037,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceDuplicate(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
@@ -4032,6 +4086,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoiceCorrection(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
 
@@ -4084,6 +4139,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function issuedInvoicePdf(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $invoice = IssuedInvoice::findById($id);
 
@@ -4111,6 +4167,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function salesDashboard(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $counts = IssuedInvoice::countByClient($clientId);
         $monthlySales = IssuedInvoice::getMonthlySales($clientId, 12);
@@ -4144,6 +4201,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function salesReport(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $month = (int) ($_GET['month'] ?? date('n'));
         $year = (int) ($_GET['year'] ?? date('Y'));
@@ -4167,6 +4225,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function salesJpk(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $month = (int) ($_GET['month'] ?? date('n'));
         $year = (int) ($_GET['year'] ?? date('Y'));
@@ -4284,6 +4343,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function salesBulkPdf(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $ids = $_POST['invoice_ids'] ?? '';
         $layout = $_POST['layout'] ?? 'vertical';
@@ -4529,6 +4589,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messages(): void
     {
+        ModuleAccess::requireModule('messages');
         $clientId = Session::get('client_id');
         $threads = Message::findByClient($clientId);
 
@@ -4544,6 +4605,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messageThread(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         $clientId = Session::get('client_id');
         $root = Message::findById($id);
 
@@ -4568,6 +4630,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messageCreate(): void
     {
+        ModuleAccess::requireModule('messages');
         if (!$this->validateCsrf()) { $this->redirect('/client/messages'); return; }
         $clientId = Session::get('client_id');
 
@@ -4596,6 +4659,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messageReply(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         if (!$this->validateCsrf()) { $this->redirect('/client/messages'); return; }
         $clientId = Session::get('client_id');
 
@@ -4625,6 +4689,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messageNotificationPrefs(): void
     {
+        ModuleAccess::requireModule('messages');
         $clientId = Session::get('client_id');
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -4647,6 +4712,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function tasks(): void
     {
+        ModuleAccess::requireModule('tasks');
         $clientId = Session::get('client_id');
         $tasks = ClientTask::findByClient($clientId);
         $counts = ClientTask::countByClientAndStatus($clientId);
@@ -4659,6 +4725,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function taskUpdateStatus(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $this->validateCsrf();
         $clientId = Session::get('client_id');
 
@@ -4684,6 +4751,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function taskAttachment(int $id): void
     {
+        ModuleAccess::requireModule('tasks');
         $clientId = Session::get('client_id');
         $task = ClientTask::findById($id);
         if (!$task || (int) $task['client_id'] !== (int) $clientId || empty($task['attachment_path'])) {
@@ -4712,6 +4780,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function taxPayments(): void
     {
+        ModuleAccess::requireModule('tax-payments');
         $clientId = Session::get('client_id');
         $filterYear = !empty($_GET['year']) ? (int) $_GET['year'] : (int) date('Y');
         if ($filterYear < 2000 || $filterYear > 2100) {
@@ -4732,6 +4801,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function messageAttachment(int $id): void
     {
+        ModuleAccess::requireModule('messages');
         $clientId = Session::get('client_id');
         $msg = \App\Core\Database::getInstance()->fetchOne("SELECT * FROM messages WHERE id = ?", [$id]);
         if (!$msg || empty($msg['attachment_path']) || (int) $msg['client_id'] !== (int) $clientId) {
@@ -4823,6 +4893,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function invoiceEmailForm(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
         if (!$client || !$client['can_send_invoices']) {
@@ -4879,6 +4950,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function invoiceEmailSend(int $id): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
 
         $clientId = Session::get('client_id');
@@ -4921,6 +4993,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function invoiceBulkSendEmail(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales'); return; }
 
         $clientId = Session::get('client_id');
@@ -5000,6 +5073,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function invoiceEmailSettings(): void
     {
+        ModuleAccess::requireModule('sales');
         $clientId = Session::get('client_id');
         $client = Client::findById($clientId);
         if (!$client || !$client['can_send_invoices']) {
@@ -5016,6 +5090,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function invoiceEmailSettingsUpdate(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { $this->redirect('/client/sales/email-settings'); return; }
 
         $clientId = Session::get('client_id');
@@ -5162,6 +5237,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function taxCalendar(): void
     {
+        ModuleAccess::requireModule('tax-calendar');
         $clientId = (int) Session::get('client_id');
         $selectedMonth = (int) ($_GET['month'] ?? date('n'));
         $selectedYear = (int) ($_GET['year'] ?? date('Y'));
@@ -5182,6 +5258,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function calculators(): void
     {
+        ModuleAccess::requireModule('tax-calculator');
         $tab = $_GET['tab'] ?? 'vat';
         $validTabs = ['vat', 'margin', 'currency', 'profit'];
         if (!in_array($tab, $validTabs, true)) $tab = 'vat';
@@ -5240,6 +5317,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function checkSalesInvoiceDuplicate(): void
     {
+        ModuleAccess::requireModule('sales');
         if (!$this->validateCsrf()) { http_response_code(403); echo json_encode(['error' => 'csrf']); return; }
 
         header('Content-Type: application/json');
@@ -5260,6 +5338,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function files(): void
     {
+        ModuleAccess::requireModule('files');
         $clientId = (int) Session::get('client_id');
         $client = Client::findById($clientId);
 
@@ -5280,6 +5359,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function fileUpload(): void
     {
+        ModuleAccess::requireModule('files');
         if (!$this->validateCsrf()) {
             $this->redirect('/client/files');
             return;
@@ -5399,6 +5479,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function fileDownload(int $id): void
     {
+        ModuleAccess::requireModule('files');
         $clientId = (int) Session::get('client_id');
         $fileRecord = ClientFile::findById($id);
 
@@ -5428,6 +5509,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
     public function fileDelete(int $id): void
     {
+        ModuleAccess::requireModule('files');
         if (!$this->validateCsrf()) {
             $this->redirect('/client/files');
             return;
