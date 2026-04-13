@@ -1,0 +1,4 @@
+# Deny direct access to all files in storage
+<FilesMatch ".*">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,9 @@
+vendor/
+storage/imports/*
+storage/exports/*
+storage/logs/*
+!storage/imports/.gitkeep
+!storage/exports/.gitkeep
+!storage/logs/.gitkeep
+.env
+config/database.php

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60">
+  <defs>
+    <linearGradient id="bGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#008F8F"/>
+      <stop offset="100%" style="stop-color:#882D61"/>
+    </linearGradient>
+  </defs>
+  <!-- Monogram B with teal/bordo swirl -->
+  <g transform="translate(6,6)">
+    <path d="M4 0 C4 0 4 48 4 48 L18 48 C30 48 36 42 36 34 C36 28 32 24 26 22 C30 20 34 16 34 10 C34 4 28 0 20 0 Z M14 8 L18 8 C22 8 24 10 24 14 C24 18 22 20 18 20 L14 20 Z M14 28 L20 28 C24 28 26 30 26 34 C26 38 24 40 20 40 L14 40 Z"
+          fill="url(#bGrad)"/>
+  </g>
+  <!-- Text: BiLLU -->
+  <text x="54" y="36" font-family="Montserrat, Arial, sans-serif" font-weight="600" font-size="30" fill="#0B2430" letter-spacing="1">BiLLU</text>
+  <!-- Subtitle: FINANCIAL SOLUTIONS -->
+  <text x="54" y="52" font-family="Montserrat, Arial, sans-serif" font-weight="400" font-size="8.5" fill="#757575" letter-spacing="2.5">FINANCIAL SOLUTIONS</text>
+</svg>
