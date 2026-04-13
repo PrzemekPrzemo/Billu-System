@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS module_bundles (
     slug VARCHAR(50) NOT NULL UNIQUE,
     description TEXT DEFAULT NULL,
     modules_json JSON NOT NULL COMMENT 'Array of module slugs included in bundle',
-    price_monthly DECIMAL(10,2) DEFAULT NULL,
+    price_base_monthly DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Opłata bazowa za biuro/mies. netto',
+    price_per_client DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Opłata za klienta/mies. netto',
+    is_addon TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Czy jest dodatkiem do innego pakietu',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     sort_order INT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -110,45 +112,58 @@ WHERE m1.slug = 'sales' AND m2.slug = 'ksef';
 -- 5. SEED COMMERCIAL BUNDLES
 -- ══════════════════════════════════════════════
 
-INSERT IGNORE INTO module_bundles (name, slug, description, modules_json, price_monthly, sort_order) VALUES
+-- Pricing model: base per office + per client per month (netto PLN)
+-- Competitive vs: wFirma 18 PLN/klient, SaldeoSMART 259-799 base, Comarch 500-800+/stanowisko
+
+INSERT IGNORE INTO module_bundles (name, slug, description, modules_json, price_base_monthly, price_per_client, is_addon, sort_order) VALUES
 (
     'Starter',
     'starter',
-    'Weryfikacja faktur zakupowych, kontrahenci, komunikacja z klientem',
+    'Weryfikacja faktur zakupowych, kontrahenci, komunikacja z klientem. Idealny na start.',
     '["invoices", "security", "contractors", "company-profile", "messages", "files"]',
-    99.00,
+    0.00,
+    9.00,
+    0,
     1
 ),
 (
     'Professional',
     'professional',
-    'Fakturowanie sprzedażowe, KSeF, wykrywanie duplikatów, kalendarz podatkowy',
+    'Fakturowanie sprzedażowe, integracja KSeF, wykrywanie duplikatów, kalendarz podatkowy.',
     '["invoices", "security", "contractors", "company-profile", "messages", "files", "sales", "ksef", "duplicates", "tax-calendar"]',
-    249.00,
+    0.00,
+    14.00,
+    0,
     2
 ),
 (
     'Tax & Finance',
     'tax-finance',
-    'Pełna obsługa podatkowa: kalkulatory, raporty, analityka, eksport ERP',
+    'Pełna obsługa podatkowa: kalkulatory, płatności, raporty JPK/VAT, analityka, eksport ERP.',
     '["invoices", "security", "contractors", "company-profile", "messages", "files", "sales", "ksef", "duplicates", "tax-calendar", "tax-calculator", "tax-payments", "reports", "analytics", "erp-export"]',
-    399.00,
+    49.00,
+    16.00,
+    0,
     3
 ),
 (
     'HR & Payroll',
     'hr-payroll',
-    'Kadry i płace: pracownicy, umowy, listy płac, urlopy, deklaracje PIT/ZUS',
-    '["invoices", "security", "messages", "files", "hr", "payroll-calc", "payroll-lists", "payroll-contracts", "payroll-leave", "payroll-pit", "payroll-zus"]',
-    299.00,
+    'Dodatek Kadry i Płace: pracownicy, umowy, listy płac, urlopy, deklaracje PIT/ZUS. Dokupowany do dowolnego pakietu.',
+    '["hr", "payroll-calc", "payroll-lists", "payroll-contracts", "payroll-leave", "payroll-pit", "payroll-zus"]',
+    29.00,
+    4.00,
+    1,
     4
 ),
 (
     'Enterprise',
     'enterprise',
-    'Pełny dostęp do wszystkich modułów systemu BiLLU',
+    'Pełny dostęp do wszystkich modułów BiLLU z HR i zadaniami. Najlepsza wartość dla dużych biur.',
     '["invoices", "security", "contractors", "company-profile", "messages", "files", "tasks", "sales", "ksef", "duplicates", "tax-calendar", "tax-calculator", "tax-payments", "reports", "analytics", "erp-export", "hr", "payroll-calc", "payroll-lists", "payroll-contracts", "payroll-leave", "payroll-pit", "payroll-zus"]',
-    549.00,
+    49.00,
+    19.00,
+    0,
     5
 );
 

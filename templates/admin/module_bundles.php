@@ -24,7 +24,7 @@
             <select name="bundle_id" class="form-input" required>
                 <option value="">-- wybierz pakiet --</option>
                 <?php foreach ($bundles as $b): ?>
-                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?> (<?= number_format((float)($b['price_monthly'] ?? 0), 2, ',', ' ') ?> PLN/mies.)</option>
+                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?><?= !empty($b['is_addon']) ? ' [ADDON]' : '' ?> (<?= number_format((float)($b['price_base_monthly'] ?? 0), 0) ?> + <?= number_format((float)($b['price_per_client'] ?? 0), 0) ?> PLN/klient)</option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -37,12 +37,29 @@
     <?php foreach ($bundles as $b):
         $moduleSlugs = json_decode($b['modules_json'] ?? '[]', true) ?: [];
     ?>
-    <div class="form-card" style="border-left:4px solid var(--primary);<?= empty($b['is_active']) ? 'opacity:0.5;' : '' ?>">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <h3 style="margin:0;"><?= htmlspecialchars($b['name']) ?></h3>
-            <span style="font-size:18px;font-weight:700;color:var(--primary);">
-                <?= number_format((float)($b['price_monthly'] ?? 0), 0, ',', ' ') ?> PLN<span style="font-size:12px;font-weight:400;color:var(--gray-500);">/mies.</span>
-            </span>
+    <div class="form-card" style="border-left:4px solid <?= !empty($b['is_addon']) ? 'var(--accent, #882D61)' : 'var(--primary)' ?>;<?= empty($b['is_active']) ? 'opacity:0.5;' : '' ?>">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+            <div>
+                <h3 style="margin:0;display:flex;align-items:center;gap:6px;">
+                    <?= htmlspecialchars($b['name']) ?>
+                    <?php if (!empty($b['is_addon'])): ?>
+                    <span style="font-size:10px;background:var(--accent, #882D61);color:#fff;padding:2px 8px;border-radius:4px;">ADDON</span>
+                    <?php endif; ?>
+                </h3>
+            </div>
+            <div style="text-align:right;">
+                <?php $base = (float)($b['price_base_monthly'] ?? 0); $perClient = (float)($b['price_per_client'] ?? 0); ?>
+                <?php if ($base > 0): ?>
+                <div style="font-size:16px;font-weight:700;color:var(--primary);"><?= number_format($base, 0) ?> PLN<span style="font-size:11px;font-weight:400;color:var(--gray-500);">/mies. baza</span></div>
+                <?php endif; ?>
+                <div style="font-size:<?= $base > 0 ? '13' : '18' ?>px;font-weight:700;color:var(--primary);">
+                    <?php if ($base == 0): ?>0 PLN baza + <?php endif; ?>
+                    <?= number_format($perClient, 0) ?> PLN<span style="font-size:11px;font-weight:400;color:var(--gray-500);">/klient/mies.</span>
+                </div>
+                <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">
+                    50 klientów = <?= number_format($base + $perClient * 50, 0, ',', ' ') ?> PLN/mies.
+                </div>
+            </div>
         </div>
         <p style="color:var(--gray-500);font-size:13px;margin-bottom:12px;"><?= htmlspecialchars($b['description'] ?? '') ?></p>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">

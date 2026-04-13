@@ -1,0 +1,301 @@
+<!--
+  BiLLU Financial Solutions — Sekcja cennika
+  Do wklejenia w szablon WordPress (Billu-Website repo)
+  billu.pl / portal.billu.pl
+-->
+
+<style>
+.billu-pricing { max-width:1200px; margin:0 auto; padding:40px 20px; font-family:'Montserrat',sans-serif; }
+.billu-pricing * { box-sizing:border-box; }
+
+.pricing-badge { display:inline-block; background:linear-gradient(135deg,#008F8F,#00b3b3); color:#fff; padding:10px 28px; border-radius:50px; font-size:15px; font-weight:600; margin-bottom:24px; box-shadow:0 4px 15px rgba(0,143,143,0.3); }
+.pricing-badge strong { font-size:20px; }
+
+.pricing-header { text-align:center; margin-bottom:48px; }
+.pricing-header h2 { font-size:36px; font-weight:700; color:#0B2430; margin:0 0 12px; }
+.pricing-header p { font-size:16px; color:#6b7280; max-width:600px; margin:0 auto 20px; line-height:1.6; }
+
+.pricing-model-info { display:flex; justify-content:center; gap:32px; flex-wrap:wrap; margin-bottom:16px; }
+.pricing-model-item { display:flex; align-items:center; gap:8px; font-size:14px; color:#374151; }
+.pricing-model-item .icon { width:36px; height:36px; border-radius:50%; background:#f0fdfa; display:flex; align-items:center; justify-content:center; }
+.pricing-model-item .icon svg { width:18px; height:18px; stroke:#008F8F; }
+
+.pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; margin-bottom:32px; }
+
+.pricing-card { background:#fff; border-radius:16px; padding:32px 28px; border:2px solid #e5e7eb; position:relative; transition:transform 0.2s, box-shadow 0.2s; }
+.pricing-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.08); }
+.pricing-card.popular { border-color:#008F8F; }
+.pricing-card.popular::before { content:'NAJPOPULARNIEJSZY'; position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:#008F8F; color:#fff; font-size:11px; font-weight:700; padding:4px 16px; border-radius:20px; letter-spacing:0.5px; }
+.pricing-card.addon { border-color:#882D61; border-style:dashed; }
+.pricing-card.addon::before { content:'ADDON'; position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:#882D61; color:#fff; font-size:11px; font-weight:700; padding:4px 16px; border-radius:20px; }
+
+.pricing-card h3 { font-size:22px; font-weight:700; color:#0B2430; margin:0 0 8px; }
+.pricing-card .price-main { margin:16px 0; }
+.pricing-card .price-base { font-size:14px; color:#6b7280; }
+.pricing-card .price-base strong { font-size:15px; color:#374151; }
+.pricing-card .price-client { font-size:32px; font-weight:800; color:#008F8F; line-height:1; }
+.pricing-card .price-client span { font-size:14px; font-weight:400; color:#6b7280; }
+.pricing-card .price-example { font-size:13px; color:#9ca3af; margin-top:6px; }
+.pricing-card .description { font-size:14px; color:#6b7280; line-height:1.5; margin-bottom:20px; min-height:42px; }
+
+.pricing-card ul { list-style:none; padding:0; margin:0 0 24px; }
+.pricing-card ul li { font-size:13px; color:#374151; padding:6px 0; padding-left:24px; position:relative; line-height:1.4; }
+.pricing-card ul li::before { content:'✓'; position:absolute; left:0; color:#008F8F; font-weight:700; }
+
+.pricing-card .btn-pricing { display:block; text-align:center; padding:14px; border-radius:10px; font-size:15px; font-weight:600; text-decoration:none; transition:background 0.2s; }
+.pricing-card .btn-pricing.primary { background:#008F8F; color:#fff; }
+.pricing-card .btn-pricing.primary:hover { background:#007a7a; }
+.pricing-card .btn-pricing.secondary { background:#f3f4f6; color:#374151; }
+.pricing-card .btn-pricing.secondary:hover { background:#e5e7eb; }
+.pricing-card .btn-pricing.accent { background:#882D61; color:#fff; }
+.pricing-card .btn-pricing.accent:hover { background:#6d2350; }
+
+/* Comparison table */
+.pricing-comparison { margin-top:48px; }
+.pricing-comparison h3 { text-align:center; font-size:24px; color:#0B2430; margin-bottom:24px; }
+.pricing-comparison table { width:100%; border-collapse:collapse; font-size:14px; }
+.pricing-comparison th { background:#f9fafb; padding:12px 16px; text-align:left; font-weight:600; color:#374151; border-bottom:2px solid #e5e7eb; }
+.pricing-comparison td { padding:12px 16px; border-bottom:1px solid #f3f4f6; color:#6b7280; }
+.pricing-comparison tr:last-child td { border-bottom:none; }
+.pricing-comparison .billu-row { background:#f0fdfa; }
+.pricing-comparison .billu-row td { color:#008F8F; font-weight:600; }
+.pricing-comparison .saving { display:inline-block; background:#dcfce7; color:#166534; font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; }
+
+/* Calculator */
+.pricing-calc { margin-top:48px; background:#f9fafb; border-radius:16px; padding:32px; text-align:center; }
+.pricing-calc h3 { font-size:20px; color:#0B2430; margin-bottom:16px; }
+.pricing-calc label { font-size:14px; color:#6b7280; }
+.pricing-calc input[type=range] { width:300px; max-width:80%; margin:12px 0; accent-color:#008F8F; }
+.pricing-calc .calc-result { font-size:28px; font-weight:800; color:#008F8F; margin-top:8px; }
+.pricing-calc .calc-detail { font-size:13px; color:#9ca3af; margin-top:4px; }
+
+@media(max-width:768px) {
+    .pricing-grid { grid-template-columns:1fr; }
+    .pricing-header h2 { font-size:28px; }
+}
+</style>
+
+<section class="billu-pricing" id="cennik">
+    <div class="pricing-header">
+        <span class="pricing-badge">Jestesmy tansi od konkurencji o <strong>do 50%</strong></span>
+        <h2>Prosty cennik. Placisz za klientow, nie za funkcje.</h2>
+        <p>Baza za biuro + oplata za kazdego klienta. Bez ukrytych kosztow. OCR, KSeF i dodatkowi uzytkownicy w cenie.</p>
+
+        <div class="pricing-model-info">
+            <div class="pricing-model-item">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+                <span><strong>Baza</strong> = stala oplata za biuro</span>
+            </div>
+            <div class="pricing-model-item">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                <span><strong>Per klient</strong> = za kazdego obslugiwanego klienta</span>
+            </div>
+            <div class="pricing-model-item">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                <span>Wszystkie ceny <strong>netto</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAKIETY -->
+    <div class="pricing-grid">
+        <!-- STARTER -->
+        <div class="pricing-card">
+            <h3>Starter</h3>
+            <div class="description">Weryfikacja faktur zakupowych, kontrahenci, komunikacja z klientem. Idealny na start.</div>
+            <div class="price-main">
+                <div class="price-base">Baza: <strong>0 PLN</strong>/mies.</div>
+                <div class="price-client">9 PLN <span>/klient/mies.</span></div>
+                <div class="price-example">50 klientow = 450 PLN/mies.</div>
+            </div>
+            <ul>
+                <li>Faktury zakupowe + OCR</li>
+                <li>Baza kontrahentow</li>
+                <li>Profil firmy klienta</li>
+                <li>Wiadomosci biuro-klient</li>
+                <li>Udostepnianie plikow</li>
+                <li>Bez limitu uzytkownikow</li>
+            </ul>
+            <a href="https://portal.billu.pl/register" class="btn-pricing secondary">Testuj 30 dni za darmo</a>
+        </div>
+
+        <!-- PROFESSIONAL -->
+        <div class="pricing-card popular">
+            <h3>Professional</h3>
+            <div class="description">Fakturowanie sprzedazowe, integracja KSeF, wykrywanie duplikatow, kalendarz podatkowy.</div>
+            <div class="price-main">
+                <div class="price-base">Baza: <strong>0 PLN</strong>/mies.</div>
+                <div class="price-client">14 PLN <span>/klient/mies.</span></div>
+                <div class="price-example">50 klientow = 700 PLN/mies.</div>
+            </div>
+            <ul>
+                <li>Wszystko ze Starter +</li>
+                <li>Faktury sprzedazowe</li>
+                <li>Pelna integracja KSeF</li>
+                <li>Wykrywanie duplikatow</li>
+                <li>Kalendarz podatkowy</li>
+                <li>Wysylka e-faktur z systemu</li>
+            </ul>
+            <a href="https://portal.billu.pl/register" class="btn-pricing primary">Testuj 30 dni za darmo</a>
+        </div>
+
+        <!-- TAX & FINANCE -->
+        <div class="pricing-card">
+            <h3>Tax &amp; Finance</h3>
+            <div class="description">Pelna obsluga podatkowa: kalkulatory, platnosci, raporty JPK/VAT, analityka, eksport ERP.</div>
+            <div class="price-main">
+                <div class="price-base">Baza: <strong>49 PLN</strong>/mies.</div>
+                <div class="price-client">16 PLN <span>/klient/mies.</span></div>
+                <div class="price-example">50 klientow = 849 PLN/mies.</div>
+            </div>
+            <ul>
+                <li>Wszystko z Professional +</li>
+                <li>Kalkulator podatkowy</li>
+                <li>Platnosci podatkowe VAT/PIT/CIT</li>
+                <li>Raporty JPK, VAT</li>
+                <li>Analityka i dashboardy</li>
+                <li>Eksport do Comarch, Sage, Enova</li>
+            </ul>
+            <a href="https://portal.billu.pl/register" class="btn-pricing secondary">Testuj 30 dni za darmo</a>
+        </div>
+
+        <!-- HR & PAYROLL (ADDON) -->
+        <div class="pricing-card addon">
+            <h3>Kadry i Place</h3>
+            <div class="description">Dodatek do dowolnego pakietu: pracownicy, umowy, listy plac, urlopy, deklaracje PIT/ZUS.</div>
+            <div class="price-main">
+                <div class="price-base">Baza: <strong>+29 PLN</strong>/mies.</div>
+                <div class="price-client">+4 PLN <span>/klient/mies.</span></div>
+                <div class="price-example">50 klientow = +229 PLN/mies.</div>
+            </div>
+            <ul>
+                <li>Zarzadzanie pracownikami klienta</li>
+                <li>Umowy o prace, zlecenie, o dzielo</li>
+                <li>Listy plac brutto&#8594;netto</li>
+                <li>Zarzadzanie urlopami</li>
+                <li>Deklaracje PIT-11, PIT-4R</li>
+                <li>Deklaracje ZUS DRA/RCA</li>
+                <li>PDF paskow wynagrodzen</li>
+            </ul>
+            <a href="https://portal.billu.pl/register" class="btn-pricing accent">Dodaj do pakietu</a>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="pricing-card">
+            <h3>Enterprise</h3>
+            <div class="description">Pelny dostep do wszystkich modulow BiLLU z HR i zadaniami. Najlepsza wartosc dla duzych biur.</div>
+            <div class="price-main">
+                <div class="price-base">Baza: <strong>49 PLN</strong>/mies.</div>
+                <div class="price-client">19 PLN <span>/klient/mies.</span></div>
+                <div class="price-example">50 klientow = 999 PLN/mies.</div>
+            </div>
+            <ul>
+                <li>Wszystkie moduly BiLLU</li>
+                <li>Kadry i Place w cenie</li>
+                <li>Zarzadzanie zadaniami</li>
+                <li>Eksport ERP, raporty, analityka</li>
+                <li>23 moduly, 0 ograniczen</li>
+                <li>Priorytetowe wsparcie</li>
+            </ul>
+            <a href="https://portal.billu.pl/register" class="btn-pricing primary">Testuj 30 dni za darmo</a>
+        </div>
+    </div>
+
+    <!-- KALKULATOR CENOWY -->
+    <div class="pricing-calc">
+        <h3>Ile zaplacisz? Sprawdz sam.</h3>
+        <label>Liczba klientow: <strong id="calc-count">50</strong></label><br>
+        <input type="range" id="calc-slider" min="5" max="200" value="50" step="5" oninput="calcPrice(this.value)">
+        <div>
+            <select id="calc-bundle" onchange="calcPrice(document.getElementById('calc-slider').value)" style="padding:8px 16px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;margin-top:8px;">
+                <option value="0|9" selected>Starter (0 + 9 PLN/klient)</option>
+                <option value="0|14">Professional (0 + 14 PLN/klient)</option>
+                <option value="49|16">Tax &amp; Finance (49 + 16 PLN/klient)</option>
+                <option value="49|19">Enterprise (49 + 19 PLN/klient)</option>
+            </select>
+        </div>
+        <div class="calc-result" id="calc-result">450 PLN</div>
+        <div class="calc-detail" id="calc-detail">netto / miesiac (baza 0 PLN + 50 x 9 PLN)</div>
+        <div style="margin-top:8px;">
+            <label style="font-size:13px;"><input type="checkbox" id="calc-hr" onchange="calcPrice(document.getElementById('calc-slider').value)"> + Kadry i Place (+29 PLN + 4 PLN/klient)</label>
+        </div>
+    </div>
+
+    <script>
+    function calcPrice(clients) {
+        clients = parseInt(clients);
+        document.getElementById('calc-count').textContent = clients;
+        var bundle = document.getElementById('calc-bundle').value.split('|');
+        var base = parseFloat(bundle[0]);
+        var perClient = parseFloat(bundle[1]);
+        var hr = document.getElementById('calc-hr').checked;
+        if (hr) { base += 29; perClient += 4; }
+        var total = base + (clients * perClient);
+        document.getElementById('calc-result').textContent = total.toLocaleString('pl-PL') + ' PLN';
+        document.getElementById('calc-detail').textContent = 'netto / miesiac (baza ' + base + ' PLN + ' + clients + ' x ' + perClient + ' PLN)';
+    }
+    </script>
+
+    <!-- POROWNANIE Z KONKURENCJA -->
+    <div class="pricing-comparison">
+        <h3>Porownanie z konkurencja <span style="font-size:14px;color:#6b7280;font-weight:400;">(dla 50 klientow, netto/mies.)</span></h3>
+        <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>System</th>
+                    <th>Model cenowy</th>
+                    <th>Koszt (50 klientow)</th>
+                    <th>KSeF / OCR</th>
+                    <th>Kadry i Place</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="billu-row">
+                    <td>BiLLU Starter</td>
+                    <td>0 PLN + 9 PLN/klient</td>
+                    <td><strong>450 PLN</strong> <span class="saving">-50% vs wFirma</span></td>
+                    <td>W cenie</td>
+                    <td>+229 PLN (addon)</td>
+                </tr>
+                <tr class="billu-row">
+                    <td>BiLLU Professional</td>
+                    <td>0 PLN + 14 PLN/klient</td>
+                    <td><strong>700 PLN</strong> <span class="saving">-22% vs wFirma</span></td>
+                    <td>W cenie</td>
+                    <td>+229 PLN (addon)</td>
+                </tr>
+                <tr class="billu-row">
+                    <td>BiLLU Enterprise</td>
+                    <td>49 PLN + 19 PLN/klient</td>
+                    <td><strong>999 PLN</strong> <span class="saving">all-in z HR!</span></td>
+                    <td>W cenie</td>
+                    <td>W cenie</td>
+                </tr>
+                <tr>
+                    <td>wFirma</td>
+                    <td>18 PLN/klient (all-in)</td>
+                    <td>900 PLN</td>
+                    <td>W cenie</td>
+                    <td>od 49 PLN/mies.</td>
+                </tr>
+                <tr>
+                    <td>SaldeoSMART</td>
+                    <td>379 PLN baza + 6 PLN/klient</td>
+                    <td>~619 PLN</td>
+                    <td>Kredyty (0,45 PLN/szt.)</td>
+                    <td>Brak</td>
+                </tr>
+                <tr>
+                    <td>Comarch Optima</td>
+                    <td>Modulowy (per stanowisko)</td>
+                    <td>500-800+ PLN</td>
+                    <td>Osobny modul</td>
+                    <td>167-325 PLN/mies.</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+        <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:12px;">Dane cenowe na podstawie oficjalnych cennikow konkurencji z 2026 roku. Ceny netto.</p>
+    </div>
+</section>
