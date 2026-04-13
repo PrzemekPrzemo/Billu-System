@@ -24,6 +24,10 @@ class Controller
         // Notification count for layout bell icon
         $notificationCount = $this->getNotificationCount();
 
+        // Enabled modules for navigation filtering
+        $enabledModules = ModuleAccess::getEnabledSlugs();
+        $canModule = fn(string $slug) => in_array('*', $enabledModules) || in_array($slug, $enabledModules);
+
         ob_start();
         require __DIR__ . '/../../templates/' . $template . '.php';
         $content = ob_get_clean();
