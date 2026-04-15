@@ -77,17 +77,17 @@ INSERT INTO email_templates (template_key, name, subject_pl, body_pl, subject_en
  'company_name,pending_count,deadline,login_url'),
 
 ('password_reset', 'Reset hasła',
- 'Reset hasła - FaktuPilot',
+ 'Reset hasła - BiLLU',
  '<p>Witaj <strong>{{name}}</strong>,</p><p>Kliknij poniższy link, aby zresetować hasło:</p><p><a href="{{reset_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Zresetuj hasło</a></p><p>Link wygasa za 1 godzinę.</p>',
- 'Password Reset - FaktuPilot',
+ 'Password Reset - BiLLU',
  '<p>Hello <strong>{{name}}</strong>,</p><p>Click the link below to reset your password:</p><p><a href="{{reset_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Reset Password</a></p><p>This link expires in 1 hour.</p>',
  'name,reset_url'),
 
 ('initial_credentials', 'Dane logowania',
- 'Dane logowania do systemu FaktuPilot',
- '<p>Szanowni Państwo <strong>{{company_name}}</strong>,</p><p>Utworzono konto w systemie FaktuPilot.</p><p>NIP: <strong>{{nip}}</strong><br>Hasło: <strong>{{password}}</strong></p><p><a href="{{login_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Zaloguj się</a></p>',
- 'Your FaktuPilot account credentials',
- '<p>Dear <strong>{{company_name}}</strong>,</p><p>An account has been created for you in FaktuPilot.</p><p>NIP: <strong>{{nip}}</strong><br>Password: <strong>{{password}}</strong></p><p><a href="{{login_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Log in</a></p>',
+ 'Dane logowania do systemu BiLLU',
+ '<p>Szanowni Państwo <strong>{{company_name}}</strong>,</p><p>Utworzono konto w systemie BiLLU.</p><p>NIP: <strong>{{nip}}</strong><br>Hasło: <strong>{{password}}</strong></p><p><a href="{{login_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Zaloguj się</a></p>',
+ 'Your BiLLU account credentials',
+ '<p>Dear <strong>{{company_name}}</strong>,</p><p>An account has been created for you in BiLLU.</p><p>NIP: <strong>{{nip}}</strong><br>Password: <strong>{{password}}</strong></p><p><a href="{{login_url}}" style="display:inline-block;padding:12px 24px;background:#0B7285;color:white;text-decoration:none;border-radius:6px;">Log in</a></p>',
  'company_name,nip,password,login_url'),
 
 ('certificate_expiry', 'Wygasanie certyfikatu KSeF',

@@ -291,20 +291,120 @@ class AdminController extends Controller
 
         $enabledSlugs = $_POST['modules'] ?? [];
         $allModules = Module::findAll(true);
+        $autoActions = [];
+
+        foreach ($allModules as $mod) {
+            $shouldEnable = in_array($mod['slug'], $enabledSlugs, true);
+            if (!empty($mod['is_system'])) {
+                $shouldEnable = true;
+            }
+
+            $currentlyEnabled = Module::isEnabledForOffice((int) $id, $mod['slug']);
+
+            if ($shouldEnable && !$currentlyEnabled) {
+                // Enabling — auto-enable required dependencies
+                $auto = Module::enableWithDependencies((int) $id, (int) $mod['id'], Auth::currentUserId());
+                if ($auto) {
+                    $autoActions = array_merge($autoActions, array_map(fn($s) => "+{$s}", $auto));
+                }
+            } elseif (!$shouldEnable && $currentlyEnabled) {
+                // Disabling — auto-disable dependent modules
+                $auto = Module::disableWithDependents((int) $id, (int) $mod['id'], Auth::currentUserId());
+                if ($auto) {
+                    $autoActions = array_merge($autoActions, array_map(fn($s) => "-{$s}", $auto));
+                }
+            } else {
+                Module::setOfficeModule((int) $id, (int) $mod['id'], $shouldEnable, Auth::currentUserId());
+            }
+        }
+
+        $logMsg = 'Modules updated for office: ' . $office['name'] . ' (ID: ' . $id . ')';
+        if ($autoActions) {
+            $logMsg .= ' | Auto-cascade: ' . implode(', ', array_unique($autoActions));
+        }
+
+        AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated', $logMsg, 'office', (int) $id);
+        Session::flash('success', 'modules_saved');
+        $this->redirect("/admin/offices/{$id}/modules");
+    }
+
+    // ── Client Module Management ─────────────────────
+
+    public function clientModules(string $id): void
+    {
+        $client = Client::findById((int) $id);
+        if (!$client) { $this->redirect('/admin/clients'); return; }
+
+        $officeId = (int) ($client['office_id'] ?? 0);
+        $modules = Module::getClientModuleMatrix((int) $id, $officeId);
+        $this->render('admin/client_modules', [
+            'client' => $client,
+            'modules' => $modules,
+        ]);
+    }
+
+    public function clientModulesUpdate(string $id): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect("/admin/clients/{$id}/modules"); return; }
+
+        $client = Client::findById((int) $id);
+        if (!$client) { $this->redirect('/admin/clients'); return; }
+
+        $enabledSlugs = $_POST['modules'] ?? [];
+        $allModules = Module::findAll(true);
 
         foreach ($allModules as $mod) {
             $enabled = in_array($mod['slug'], $enabledSlugs, true);
-            // System modules are always enabled
             if (!empty($mod['is_system'])) {
                 $enabled = true;
             }
-            Module::setOfficeModule((int) $id, (int) $mod['id'], $enabled, Auth::currentUserId());
+            Module::setClientModule((int) $id, (int) $mod['id'], $enabled, Auth::currentUserId());
         }
 
-        AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated',
-            'Modules updated for office: ' . $office['name'] . ' (ID: ' . $id . ')', 'office', (int) $id);
+        AuditLog::log('admin', Auth::currentUserId(), 'client_modules_updated',
+            'Modules updated for client: ' . ($client['company_name'] ?? $client['name'] ?? '') . ' (ID: ' . $id . ')', 'client', (int) $id);
         Session::flash('success', 'modules_saved');
-        $this->redirect("/admin/offices/{$id}/modules");
+        $this->redirect("/admin/clients/{$id}/modules");
+    }
+
+    // ── Module Bundles Management ───────────────────────
+
+    public function moduleBundles(): void
+    {
+        $bundles = Module::getBundles(false);
+        $offices = Office::findAll();
+        $dependencyMap = Module::getDependencyMap();
+
+        $this->render('admin/module_bundles', [
+            'bundles' => $bundles,
+            'offices' => $offices,
+            'dependencyMap' => $dependencyMap,
+        ]);
+    }
+
+    public function moduleBundleAssign(): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect('/admin/module-bundles'); return; }
+
+        $officeId = (int)($_POST['office_id'] ?? 0);
+        $bundleId = (int)($_POST['bundle_id'] ?? 0);
+
+        $office = Office::findById($officeId);
+        $bundle = Module::findBundleById($bundleId);
+        if (!$office || !$bundle) {
+            Session::flash('error', 'invalid_bundle_or_office');
+            $this->redirect('/admin/module-bundles');
+            return;
+        }
+
+        Module::applyBundle($officeId, $bundleId, Auth::currentUserId());
+
+        AuditLog::log('admin', Auth::currentUserId(), 'bundle_assigned',
+            'Bundle "' . $bundle['name'] . '" assigned to office: ' . $office['name'] . ' (ID: ' . $officeId . ')',
+            'office', $officeId);
+
+        Session::flash('success', 'bundle_assigned');
+        $this->redirect('/admin/module-bundles');
     }
 
     public function testOfficeSmtp(string $id): void

@@ -1,6 +1,6 @@
 # POLITYKA PRYWATNOSCI I PRZETWARZANIA DANYCH OSOBOWYCH
 
-## Serwis BiLLU Financial Solutions - portal.faktupilot.pl
+## Serwis BiLLU Financial Solutions - portal.billu.pl
 
 **Ostatnia aktualizacja:** 12 kwietnia 2026 r.
 
@@ -9,7 +9,7 @@
 ## I. POSTANOWIENIA OGOLNE
 
 1. Niniejsza Polityka Prywatnosci okresla zasady przetwarzania i ochrony danych osobowych
-   w serwisie BiLLU Financial Solutions dostepnym pod adresem portal.faktupilot.pl (dalej: "Serwis").
+   w serwisie BiLLU Financial Solutions dostepnym pod adresem portal.billu.pl (dalej: "Serwis").
 
 2. Administratorem danych osobowych jest:
    <!-- KONFIGURACJA: Zastap ponizsze dane danymi wlasciwej firmy -->
@@ -35,7 +35,7 @@
 
 ## II. DEFINICJE
 
-1. **Serwis** - platforma internetowa BiLLU Financial Solutions dostepna pod adresem portal.faktupilot.pl.
+1. **Serwis** - platforma internetowa BiLLU Financial Solutions dostepna pod adresem portal.billu.pl.
 2. **Operator** - [Nazwa firmy], podmiot swiadczacy uslugi za posrednictwem Serwisu.
 3. **Biuro Ksiegowe** - podmiot prowadzacy dzialalnosc w zakresie uslug ksiegowych,
    korzystajacy z Serwisu na podstawie umowy z Operatorem.

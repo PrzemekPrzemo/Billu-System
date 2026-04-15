@@ -1,4 +1,4 @@
--- FaktuPilot v5.0 - In-app notifications + Webhooks + IP whitelist
+-- BiLLU v5.0 - In-app notifications + Webhooks + IP whitelist
 
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,

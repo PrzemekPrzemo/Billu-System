@@ -180,8 +180,8 @@ DB_HOST=${DB_HOST:-localhost}
 read -p "  Port [3306]: " DB_PORT
 DB_PORT=${DB_PORT:-3306}
 
-read -p "  Nazwa bazy danych [faktury_ksef]: " DB_NAME
-DB_NAME=${DB_NAME:-faktury_ksef}
+read -p "  Nazwa bazy danych [billu]: " DB_NAME
+DB_NAME=${DB_NAME:-billu}
 
 read -p "  Użytkownik bazy: " DB_USER
 while [[ -z "$DB_USER" ]]; do

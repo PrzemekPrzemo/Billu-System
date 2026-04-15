@@ -1,6 +1,6 @@
 # INSTRUKCJA OBSLUGI - PANEL KLIENTA
 
-## BiLLU Financial Solutions - portal.faktupilot.pl
+## BiLLU Financial Solutions - portal.billu.pl
 
 ---
 
@@ -13,7 +13,7 @@ administratora systemu.
 
 ### 1.2 Logowanie
 
-1. Wejdz na strone: **https://portal.faktupilot.pl**
+1. Wejdz na strone: **https://portal.billu.pl**
 2. Wybierz typ uzytkownika: **Klient**
 3. Wpisz swoj **NIP** (10 cyfr, bez myslnikow)
 4. Wpisz **haslo tymczasowe** otrzymane od biura

@@ -1,6 +1,6 @@
 # REGULAMIN SERWISU BILLU
 
-## portal.faktupilot.pl
+## portal.billu.pl
 
 **Ostatnia aktualizacja:** 12 kwietnia 2026 r.
 
@@ -9,7 +9,7 @@
 ## I. POSTANOWIENIA OGOLNE
 
 1. Niniejszy Regulamin okresla zasady korzystania z serwisu internetowego BiLLU Financial Solutions
-   (dalej: "Serwis"), dostepnego pod adresem portal.faktupilot.pl.
+   (dalej: "Serwis"), dostepnego pod adresem portal.billu.pl.
 
 2. Wlascicielem i operatorem Serwisu jest:
    <!-- KONFIGURACJA: Zastap ponizsze dane danymi wlasciwej firmy -->
@@ -32,7 +32,7 @@
 
 ## II. DEFINICJE
 
-1. **Serwis** - platforma internetowa BiLLU Financial Solutions dostepna pod adresem portal.faktupilot.pl,
+1. **Serwis** - platforma internetowa BiLLU Financial Solutions dostepna pod adresem portal.billu.pl,
    umozliwiajaca obieg i weryfikacje faktur zakupowych.
 
 2. **Operator** - [Nazwa firmy], podmiot swiadczacy uslugi za posrednictwem Serwisu.

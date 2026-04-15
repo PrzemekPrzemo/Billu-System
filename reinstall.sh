@@ -116,8 +116,8 @@ DB_HOST=${DB_HOST:-${OLD_DB_HOST:-localhost}}
 read -p "  Port [${OLD_DB_PORT:-3306}]: " DB_PORT
 DB_PORT=${DB_PORT:-${OLD_DB_PORT:-3306}}
 
-read -p "  Nazwa bazy [${OLD_DB_NAME:-faktury_ksef}]: " DB_NAME
-DB_NAME=${DB_NAME:-${OLD_DB_NAME:-faktury_ksef}}
+read -p "  Nazwa bazy [${OLD_DB_NAME:-billu}]: " DB_NAME
+DB_NAME=${DB_NAME:-${OLD_DB_NAME:-billu}}
 
 read -p "  Użytkownik [${OLD_DB_USER}]: " DB_USER
 DB_USER=${DB_USER:-$OLD_DB_USER}

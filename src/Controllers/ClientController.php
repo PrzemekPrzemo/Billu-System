@@ -45,6 +45,15 @@ use App\Models\OfficeEmployee;
 use App\Models\ClientInvoiceEmailTemplate;
 use App\Models\ClientFile;
 use App\Services\NbpExchangeRateService;
+use App\Models\ClientEmployee;
+use App\Models\PayrollList;
+use App\Models\PayrollEntry;
+use App\Models\EmployeeLeave;
+use App\Models\EmployeeLeaveBalance;
+use App\Models\EmployeeContract;
+use App\Models\PayrollDeclaration;
+use App\Services\LeaveService;
+use App\Services\PayrollPdfService;
 
 class ClientController extends Controller
 {
@@ -5541,5 +5550,128 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
 
         Session::flash('success', 'file_deleted');
         $this->redirect('/client/files');
+    }
+
+    // ── HR / Kadry i Płace (read-only + leave requests) ────
+
+    public function hrEmployees(): void
+    {
+        ModuleAccess::requireModule('hr');
+        $clientId = (int)Session::get('client_id');
+        $employees = ClientEmployee::findByClient($clientId);
+        $this->render('client/hr_employees', [
+            'employees' => $employees,
+        ]);
+    }
+
+    public function hrPayrollLists(): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $clientId = (int)Session::get('client_id');
+        $lists = PayrollList::findByClient($clientId);
+        $this->render('client/hr_payroll_lists', [
+            'lists' => $lists,
+        ]);
+    }
+
+    public function hrPayrollDetail(string $listId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $clientId = (int)Session::get('client_id');
+        $list = PayrollList::findById((int)$listId);
+        if (!$list || (int)$list['client_id'] !== $clientId) {
+            $this->redirect('/client/hr/payroll');
+            return;
+        }
+
+        $entries = PayrollEntry::findByPayrollList((int)$listId);
+        $this->render('client/hr_payroll_detail', [
+            'list' => $list,
+            'entries' => $entries,
+        ]);
+    }
+
+    public function hrPayrollPdf(string $listId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $clientId = (int)Session::get('client_id');
+        $list = PayrollList::findById((int)$listId);
+        if (!$list || (int)$list['client_id'] !== $clientId) {
+            $this->redirect('/client/hr/payroll');
+            return;
+        }
+
+        $filepath = PayrollPdfService::generatePayrollList((int)$listId);
+        if ($filepath && file_exists($filepath)) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
+            readfile($filepath);
+            exit;
+        }
+        Session::flash('error', 'hr_pdf_error');
+        $this->redirect("/client/hr/payroll/{$listId}");
+    }
+
+    public function hrLeaves(): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        $clientId = (int)Session::get('client_id');
+        $leaves = EmployeeLeave::findByClient($clientId);
+        $this->render('client/hr_leaves', [
+            'leaves' => $leaves,
+            'leaveTypes' => LeaveService::getLeaveTypes(),
+        ]);
+    }
+
+    public function hrLeaveRequest(): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        if (!$this->validateCsrf()) { $this->redirect('/client/hr/leaves'); return; }
+
+        $clientId = (int)Session::get('client_id');
+        $leaveId = LeaveService::requestLeave(
+            $clientId,
+            (int)($_POST['employee_id'] ?? 0),
+            (int)($_POST['contract_id'] ?? 0),
+            $_POST['leave_type'] ?? 'wypoczynkowy',
+            $_POST['start_date'] ?? '',
+            $_POST['end_date'] ?? '',
+            $this->sanitize($_POST['notes'] ?? '')
+        );
+
+        if ($leaveId) {
+            Session::flash('success', 'hr_leave_created');
+        } else {
+            Session::flash('error', 'hr_leave_error');
+        }
+        $this->redirect('/client/hr/leaves');
+    }
+
+    public function hrDeclarations(): void
+    {
+        ModuleAccess::requireModule('hr');
+        $clientId = (int)Session::get('client_id');
+        $declarations = PayrollDeclaration::findByClient($clientId);
+        $this->render('client/hr_declarations', [
+            'declarations' => $declarations,
+        ]);
+    }
+
+    public function hrDeclarationDownload(string $declarationId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $clientId = (int)Session::get('client_id');
+        $decl = PayrollDeclaration::findById((int)$declarationId);
+        if (!$decl || (int)$decl['client_id'] !== $clientId || empty($decl['xml_content'])) {
+            $this->redirect('/client/hr/declarations');
+            return;
+        }
+
+        $filename = strtolower($decl['declaration_type']) . '_' . $decl['year']
+            . ($decl['month'] ? '_' . sprintf('%02d', $decl['month']) : '') . '.xml';
+        header('Content-Type: application/xml');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $decl['xml_content'];
+        exit;
     }
 }

@@ -1,4 +1,4 @@
--- FaktuPilot v4.0 - KSeF Certificate Enrollment & Enhanced Authentication
+-- BiLLU v4.0 - KSeF Certificate Enrollment & Enhanced Authentication
 -- Migration: Adds KSeF certificate enrollment support, fixes API paths, extends operations
 -- Run AFTER v3.0 migration
 -- Safe to re-run (uses IF NOT EXISTS / column existence checks)

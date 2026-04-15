@@ -33,6 +33,18 @@ use App\Models\ClientNote;
 use App\Models\ClientMonthlyStatus;
 use App\Models\KsefOperationLog;
 use App\Models\ClientFile;
+use App\Models\ClientEmployee;
+use App\Models\EmployeeContract;
+use App\Models\PayrollList;
+use App\Models\PayrollEntry;
+use App\Models\EmployeeLeave;
+use App\Models\EmployeeLeaveBalance;
+use App\Models\PayrollDeclaration;
+use App\Services\PayrollCalculatorService;
+use App\Services\PayrollListService;
+use App\Services\PayrollPdfService;
+use App\Services\PayrollDeclarationService;
+use App\Services\LeaveService;
 
 class OfficeController extends Controller
 {
@@ -3014,5 +3026,530 @@ class OfficeController extends Controller
 
         Session::flash('success', 'file_storage_path_saved');
         $this->redirect("/office/clients/{$clientId}/files");
+    }
+
+    // ── HR / Kadry i Płace ─────────────────────────────────
+
+    public function hrDashboard(): void
+    {
+        ModuleAccess::requireModule('hr');
+        $officeId = (int)Session::get('office_id');
+        $clients = Client::findByOffice($officeId);
+        $employeeFilter = $this->getEmployeeClientFilter();
+        if ($employeeFilter !== null) {
+            $clients = array_values(array_filter($clients, fn($c) => in_array((int)$c['id'], $employeeFilter)));
+        }
+
+        $db = \App\Core\Database::getInstance();
+        $totals = ['employees' => 0, 'contracts' => 0, 'payrolls_pending' => 0, 'leaves_pending' => 0];
+
+        foreach ($clients as &$c) {
+            $cid = (int)$c['id'];
+            $empCount = ClientEmployee::countByClient($cid);
+            $contractCount = count(EmployeeContract::findActiveByClient($cid));
+
+            $c['employee_count'] = $empCount;
+            $c['active_contracts'] = $contractCount;
+            $totals['employees'] += $empCount;
+            $totals['contracts'] += $contractCount;
+
+            // Last payroll info
+            $lastPayroll = $db->fetchOne(
+                "SELECT status, CONCAT(LPAD(month,2,'0'), '/', year) as period
+                 FROM payroll_lists WHERE client_id = ? ORDER BY year DESC, month DESC LIMIT 1",
+                [$cid]
+            );
+            $c['last_payroll_status'] = $lastPayroll['status'] ?? null;
+            $c['last_payroll_period'] = $lastPayroll['period'] ?? null;
+        }
+        unset($c);
+
+        // Count pending payrolls and leaves across all clients
+        $clientIds = array_map(fn($c) => (int)$c['id'], $clients);
+        if ($clientIds) {
+            $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+            $pp = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM payroll_lists WHERE client_id IN ({$placeholders}) AND status = 'calculated'",
+                $clientIds
+            );
+            $totals['payrolls_pending'] = (int)($pp['cnt'] ?? 0);
+
+            $lp = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM employee_leaves WHERE client_id IN ({$placeholders}) AND status = 'pending'",
+                $clientIds
+            );
+            $totals['leaves_pending'] = (int)($lp['cnt'] ?? 0);
+        }
+
+        $this->render('office/hr_dashboard', [
+            'clients' => $clients,
+            'totals' => $totals,
+        ]);
+    }
+
+    public function hrEmployees(string $clientId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $employees = ClientEmployee::findByClient((int)$clientId);
+        $this->render('office/hr_employees', [
+            'client' => $client,
+            'employees' => $employees,
+        ]);
+    }
+
+    public function hrEmployeeCreate(string $clientId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $this->render('office/hr_employee_form', [
+            'client' => $client,
+            'employee' => null,
+        ]);
+    }
+
+    public function hrEmployeeStore(string $clientId): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/employees/create"); return; }
+
+        $data = [
+            'client_id' => (int)$clientId,
+            'first_name' => $this->sanitize($_POST['first_name'] ?? ''),
+            'last_name' => $this->sanitize($_POST['last_name'] ?? ''),
+            'pesel' => $this->sanitize($_POST['pesel'] ?? ''),
+            'date_of_birth' => $_POST['date_of_birth'] ?: null,
+            'email' => $this->sanitize($_POST['email'] ?? ''),
+            'phone' => $this->sanitize($_POST['phone'] ?? ''),
+            'address_street' => $this->sanitize($_POST['address_street'] ?? ''),
+            'address_city' => $this->sanitize($_POST['address_city'] ?? ''),
+            'address_postal_code' => $this->sanitize($_POST['address_postal_code'] ?? ''),
+            'tax_office' => $this->sanitize($_POST['tax_office'] ?? ''),
+            'bank_account' => $this->sanitize($_POST['bank_account'] ?? ''),
+            'nfz_branch' => $this->sanitize($_POST['nfz_branch'] ?? ''),
+            'hired_at' => $_POST['hired_at'] ?: null,
+            'notes' => $this->sanitize($_POST['notes'] ?? ''),
+        ];
+
+        ClientEmployee::create($data);
+        AuditLog::log(Auth::currentUserType(), Auth::currentUserId(), 'hr_employee_created',
+            "Employee created: {$data['first_name']} {$data['last_name']}", 'client', (int)$clientId);
+        Session::flash('success', 'hr_employee_saved');
+        $this->redirect("/office/hr/{$clientId}/employees");
+    }
+
+    public function hrEmployeeEdit(string $clientId, string $employeeId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $client = Client::findById((int)$clientId);
+        $employee = ClientEmployee::findById((int)$employeeId);
+        if (!$client || !$employee) { $this->redirect("/office/hr/{$clientId}/employees"); return; }
+
+        $this->render('office/hr_employee_form', [
+            'client' => $client,
+            'employee' => $employee,
+        ]);
+    }
+
+    public function hrEmployeeUpdate(string $clientId, string $employeeId): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/employees/{$employeeId}/edit"); return; }
+
+        $data = [
+            'first_name' => $this->sanitize($_POST['first_name'] ?? ''),
+            'last_name' => $this->sanitize($_POST['last_name'] ?? ''),
+            'pesel' => $this->sanitize($_POST['pesel'] ?? ''),
+            'date_of_birth' => $_POST['date_of_birth'] ?: null,
+            'email' => $this->sanitize($_POST['email'] ?? ''),
+            'phone' => $this->sanitize($_POST['phone'] ?? ''),
+            'address_street' => $this->sanitize($_POST['address_street'] ?? ''),
+            'address_city' => $this->sanitize($_POST['address_city'] ?? ''),
+            'address_postal_code' => $this->sanitize($_POST['address_postal_code'] ?? ''),
+            'tax_office' => $this->sanitize($_POST['tax_office'] ?? ''),
+            'bank_account' => $this->sanitize($_POST['bank_account'] ?? ''),
+            'nfz_branch' => $this->sanitize($_POST['nfz_branch'] ?? ''),
+            'hired_at' => $_POST['hired_at'] ?: null,
+            'is_active' => isset($_POST['is_active']) ? 1 : 0,
+            'notes' => $this->sanitize($_POST['notes'] ?? ''),
+        ];
+
+        ClientEmployee::update((int)$employeeId, $data);
+        Session::flash('success', 'hr_employee_saved');
+        $this->redirect("/office/hr/{$clientId}/employees");
+    }
+
+    public function hrContracts(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-contracts');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $contracts = EmployeeContract::findByClient((int)$clientId);
+        $this->render('office/hr_contracts', [
+            'client' => $client,
+            'contracts' => $contracts,
+        ]);
+    }
+
+    public function hrContractCreate(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-contracts');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $employees = ClientEmployee::findByClient((int)$clientId);
+        $this->render('office/hr_contract_form', [
+            'client' => $client,
+            'contract' => null,
+            'employees' => $employees,
+        ]);
+    }
+
+    public function hrContractStore(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-contracts');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/contracts/create"); return; }
+
+        $data = [
+            'client_id' => (int)$clientId,
+            'employee_id' => (int)($_POST['employee_id'] ?? 0),
+            'contract_type' => $_POST['contract_type'] ?? 'umowa_o_prace',
+            'work_time_fraction' => (float)($_POST['work_time_fraction'] ?? 1.00),
+            'position' => $this->sanitize($_POST['position'] ?? ''),
+            'workplace' => $this->sanitize($_POST['workplace'] ?? ''),
+            'gross_salary' => (float)($_POST['gross_salary'] ?? 0),
+            'salary_type' => $_POST['salary_type'] ?? 'monthly',
+            'zus_emerytalna' => isset($_POST['zus_emerytalna']) ? 1 : 0,
+            'zus_rentowa' => isset($_POST['zus_rentowa']) ? 1 : 0,
+            'zus_chorobowa' => isset($_POST['zus_chorobowa']) ? 1 : 0,
+            'zus_wypadkowa' => isset($_POST['zus_wypadkowa']) ? 1 : 0,
+            'zus_zdrowotna' => isset($_POST['zus_zdrowotna']) ? 1 : 0,
+            'zus_fp' => isset($_POST['zus_fp']) ? 1 : 0,
+            'zus_fgsp' => isset($_POST['zus_fgsp']) ? 1 : 0,
+            'tax_deductible_costs' => $_POST['tax_deductible_costs'] ?? 'basic',
+            'pit_exempt' => isset($_POST['pit_exempt']) ? 1 : 0,
+            'uses_kwota_wolna' => isset($_POST['uses_kwota_wolna']) ? 1 : 0,
+            'ppk_employee_rate' => (float)($_POST['ppk_employee_rate'] ?? 2.00),
+            'ppk_employer_rate' => (float)($_POST['ppk_employer_rate'] ?? 1.50),
+            'ppk_active' => isset($_POST['ppk_active']) ? 1 : 0,
+            'dzielo_kup_rate' => (float)($_POST['dzielo_kup_rate'] ?? 20.00),
+            'start_date' => $_POST['start_date'] ?? '',
+            'end_date' => $_POST['end_date'] ?: null,
+            'status' => $_POST['status'] ?? 'draft',
+            'notes' => $this->sanitize($_POST['notes'] ?? ''),
+            'created_by_type' => Auth::currentUserType(),
+            'created_by_id' => Auth::currentUserId(),
+        ];
+
+        // For umowa o prace, force all ZUS to enabled
+        if ($data['contract_type'] === 'umowa_o_prace') {
+            $data['zus_emerytalna'] = 1;
+            $data['zus_rentowa'] = 1;
+            $data['zus_chorobowa'] = 1;
+            $data['zus_wypadkowa'] = 1;
+            $data['zus_zdrowotna'] = 1;
+            $data['zus_fp'] = 1;
+            $data['zus_fgsp'] = 1;
+        }
+
+        EmployeeContract::create($data);
+        Session::flash('success', 'hr_contract_saved');
+        $this->redirect("/office/hr/{$clientId}/contracts");
+    }
+
+    public function hrContractEdit(string $contractId): void
+    {
+        ModuleAccess::requireHrModule('payroll-contracts');
+        $contract = EmployeeContract::findById((int)$contractId);
+        if (!$contract) { $this->redirect('/office/hr'); return; }
+
+        $clientId = (int)$contract['client_id'];
+        $client = Client::findById($clientId);
+        $employees = ClientEmployee::findByClient($clientId);
+
+        $this->render('office/hr_contract_form', [
+            'client' => $client,
+            'contract' => $contract,
+            'employees' => $employees,
+        ]);
+    }
+
+    public function hrContractUpdate(string $contractId): void
+    {
+        ModuleAccess::requireHrModule('payroll-contracts');
+        $contract = EmployeeContract::findById((int)$contractId);
+        if (!$contract) { $this->redirect('/office/hr'); return; }
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/contracts/{$contractId}/edit"); return; }
+
+        $data = [
+            'contract_type' => $_POST['contract_type'] ?? $contract['contract_type'],
+            'work_time_fraction' => (float)($_POST['work_time_fraction'] ?? 1.00),
+            'position' => $this->sanitize($_POST['position'] ?? ''),
+            'workplace' => $this->sanitize($_POST['workplace'] ?? ''),
+            'gross_salary' => (float)($_POST['gross_salary'] ?? 0),
+            'salary_type' => $_POST['salary_type'] ?? 'monthly',
+            'zus_emerytalna' => isset($_POST['zus_emerytalna']) ? 1 : 0,
+            'zus_rentowa' => isset($_POST['zus_rentowa']) ? 1 : 0,
+            'zus_chorobowa' => isset($_POST['zus_chorobowa']) ? 1 : 0,
+            'zus_wypadkowa' => isset($_POST['zus_wypadkowa']) ? 1 : 0,
+            'zus_zdrowotna' => isset($_POST['zus_zdrowotna']) ? 1 : 0,
+            'zus_fp' => isset($_POST['zus_fp']) ? 1 : 0,
+            'zus_fgsp' => isset($_POST['zus_fgsp']) ? 1 : 0,
+            'tax_deductible_costs' => $_POST['tax_deductible_costs'] ?? 'basic',
+            'pit_exempt' => isset($_POST['pit_exempt']) ? 1 : 0,
+            'uses_kwota_wolna' => isset($_POST['uses_kwota_wolna']) ? 1 : 0,
+            'ppk_employee_rate' => (float)($_POST['ppk_employee_rate'] ?? 2.00),
+            'ppk_employer_rate' => (float)($_POST['ppk_employer_rate'] ?? 1.50),
+            'ppk_active' => isset($_POST['ppk_active']) ? 1 : 0,
+            'dzielo_kup_rate' => (float)($_POST['dzielo_kup_rate'] ?? 20.00),
+            'start_date' => $_POST['start_date'] ?? $contract['start_date'],
+            'end_date' => $_POST['end_date'] ?: null,
+            'status' => $_POST['status'] ?? $contract['status'],
+            'notes' => $this->sanitize($_POST['notes'] ?? ''),
+        ];
+
+        EmployeeContract::update((int)$contractId, $data);
+        Session::flash('success', 'hr_contract_saved');
+        $this->redirect("/office/hr/{$contract['client_id']}/contracts");
+    }
+
+    public function hrPayrollList(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $lists = PayrollList::findByClient((int)$clientId);
+        $this->render('office/hr_payroll_lists', [
+            'client' => $client,
+            'lists' => $lists,
+        ]);
+    }
+
+    public function hrPayrollGenerate(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/payroll"); return; }
+
+        $year = (int)($_POST['year'] ?? date('Y'));
+        $month = (int)($_POST['month'] ?? date('n'));
+
+        $listId = PayrollListService::generateForMonth(
+            (int)$clientId, $year, $month,
+            Auth::currentUserType(), Auth::currentUserId()
+        );
+
+        if ($listId) {
+            Session::flash('success', 'hr_payroll_generated');
+            $this->redirect("/office/hr/payroll/{$listId}");
+        } else {
+            Session::flash('error', 'hr_payroll_generate_error');
+            $this->redirect("/office/hr/{$clientId}/payroll");
+        }
+    }
+
+    public function hrPayrollDetail(string $listId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $list = PayrollList::findById((int)$listId);
+        if (!$list) { $this->redirect('/office/hr'); return; }
+
+        $entries = PayrollEntry::findByPayrollList((int)$listId);
+        $client = Client::findById((int)$list['client_id']);
+
+        $this->render('office/hr_payroll_detail', [
+            'list' => $list,
+            'entries' => $entries,
+            'client' => $client,
+        ]);
+    }
+
+    public function hrPayrollApprove(string $listId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/payroll/{$listId}"); return; }
+
+        PayrollList::approve((int)$listId, Auth::currentUserType(), Auth::currentUserId());
+        Session::flash('success', 'hr_payroll_approved');
+        $this->redirect("/office/hr/payroll/{$listId}");
+    }
+
+    public function hrPayrollPdf(string $listId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $filepath = PayrollPdfService::generatePayrollList((int)$listId);
+        if ($filepath && file_exists($filepath)) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
+            readfile($filepath);
+            exit;
+        }
+        Session::flash('error', 'hr_pdf_error');
+        $this->redirect("/office/hr/payroll/{$listId}");
+    }
+
+    public function hrPayslipPdf(string $entryId): void
+    {
+        ModuleAccess::requireHrModule('payroll-lists');
+        $filepath = PayrollPdfService::generatePayslip((int)$entryId);
+        if ($filepath && file_exists($filepath)) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
+            readfile($filepath);
+            exit;
+        }
+        Session::flash('error', 'hr_pdf_error');
+        $this->redirect('/office/hr');
+    }
+
+    public function hrPayrollCalculator(): void
+    {
+        ModuleAccess::requireHrModule('payroll-calc');
+        $this->render('office/hr_payroll_calculator', []);
+    }
+
+    public function hrLeaves(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $leaves = EmployeeLeave::findByClient((int)$clientId);
+        $this->render('office/hr_leaves', [
+            'client' => $client,
+            'leaves' => $leaves,
+            'leaveTypes' => LeaveService::getLeaveTypes(),
+        ]);
+    }
+
+    public function hrLeaveCreate(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $employees = ClientEmployee::findByClient((int)$clientId);
+        $contracts = EmployeeContract::findActiveByClient((int)$clientId);
+        $this->render('office/hr_leave_form', [
+            'client' => $client,
+            'employees' => $employees,
+            'contracts' => $contracts,
+            'leaveTypes' => LeaveService::getLeaveTypes(),
+            'leave' => null,
+        ]);
+    }
+
+    public function hrLeaveStore(string $clientId): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/leaves/create"); return; }
+
+        $leaveId = LeaveService::requestLeave(
+            (int)$clientId,
+            (int)($_POST['employee_id'] ?? 0),
+            (int)($_POST['contract_id'] ?? 0),
+            $_POST['leave_type'] ?? 'wypoczynkowy',
+            $_POST['start_date'] ?? '',
+            $_POST['end_date'] ?? '',
+            $this->sanitize($_POST['notes'] ?? '')
+        );
+
+        if ($leaveId) {
+            Session::flash('success', 'hr_leave_created');
+        } else {
+            Session::flash('error', 'hr_leave_error');
+        }
+        $this->redirect("/office/hr/{$clientId}/leaves");
+    }
+
+    public function hrLeaveApprove(string $leaveId): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        if (!$this->validateCsrf()) { $this->redirect('/office/hr'); return; }
+
+        $leave = EmployeeLeave::findById((int)$leaveId);
+        if (!$leave) { $this->redirect('/office/hr'); return; }
+
+        LeaveService::approveLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
+        Session::flash('success', 'hr_leave_approved');
+        $this->redirect("/office/hr/{$leave['client_id']}/leaves");
+    }
+
+    public function hrLeaveReject(string $leaveId): void
+    {
+        ModuleAccess::requireHrModule('payroll-leave');
+        if (!$this->validateCsrf()) { $this->redirect('/office/hr'); return; }
+
+        $leave = EmployeeLeave::findById((int)$leaveId);
+        if (!$leave) { $this->redirect('/office/hr'); return; }
+
+        LeaveService::rejectLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
+        Session::flash('success', 'hr_leave_rejected');
+        $this->redirect("/office/hr/{$leave['client_id']}/leaves");
+    }
+
+    public function hrDeclarations(string $clientId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $client = Client::findById((int)$clientId);
+        if (!$client) { $this->redirect('/office/hr'); return; }
+
+        $declarations = PayrollDeclaration::findByClient((int)$clientId);
+        $employees = ClientEmployee::findByClient((int)$clientId);
+        $this->render('office/hr_declarations', [
+            'client' => $client,
+            'declarations' => $declarations,
+            'employees' => $employees,
+        ]);
+    }
+
+    public function hrDeclarationGenerate(string $clientId): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/declarations"); return; }
+
+        $type = $_POST['declaration_type'] ?? '';
+        $year = (int)($_POST['year'] ?? date('Y'));
+        $month = (int)($_POST['month'] ?? date('n'));
+        $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
+
+        $id = match ($type) {
+            'PIT-11' => $employeeId ? PayrollDeclarationService::generatePit11((int)$clientId, $employeeId, $year) : null,
+            'PIT-4R' => PayrollDeclarationService::generatePit4r((int)$clientId, $year),
+            'ZUS-DRA' => PayrollDeclarationService::generateZusDra((int)$clientId, $year, $month),
+            'ZUS-RCA' => PayrollDeclarationService::generateZusRca((int)$clientId, $year, $month),
+            default => null,
+        };
+
+        if ($id) {
+            Session::flash('success', 'hr_declaration_generated');
+        } else {
+            Session::flash('error', 'hr_declaration_error');
+        }
+        $this->redirect("/office/hr/{$clientId}/declarations");
+    }
+
+    public function hrDeclarationDownload(string $declarationId): void
+    {
+        ModuleAccess::requireModule('hr');
+        $decl = PayrollDeclaration::findById((int)$declarationId);
+        if (!$decl || empty($decl['xml_content'])) {
+            Session::flash('error', 'hr_declaration_not_found');
+            $this->redirect('/office/hr');
+            return;
+        }
+
+        $filename = strtolower($decl['declaration_type']) . '_' . $decl['year']
+            . ($decl['month'] ? '_' . sprintf('%02d', $decl['month']) : '') . '.xml';
+
+        header('Content-Type: application/xml');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $decl['xml_content'];
+        exit;
     }
 }

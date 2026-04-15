@@ -54,7 +54,7 @@ if [[ -z "$DOMAIN" ]]; then
     for DIR in /var/www/vhosts/*/httpdocs; do
         if [[ -d "$DIR" && -f "$DIR/public/index.php" && -f "$DIR/config/database.php" ]]; then
             # Sprawdź czy to BiLLU (szukaj composer.json z naszym projektem)
-            if grep -q "faktury-ksef\|FaktuPilot\|BiLLU" "$DIR/composer.json" 2>/dev/null; then
+            if grep -q "financial-solutions\|faktury-ksef\|BiLLU" "$DIR/composer.json" 2>/dev/null; then
                 HTTPDOCS="$DIR"
                 DOMAIN=$(basename "$(dirname "$DIR")")
                 echo -e "  Znaleziono: ${GREEN}${HTTPDOCS}${NC}"

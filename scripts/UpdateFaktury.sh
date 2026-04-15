@@ -6,7 +6,7 @@
 #   curl -sSL https://raw.githubusercontent.com/PrzemekPrzemo/Faktury/main/scripts/UpdateFaktury.sh | sudo bash
 #
 # Lub z podaną domeną:
-#   curl -sSL https://raw.githubusercontent.com/PrzemekPrzemo/Faktury/main/scripts/UpdateFaktury.sh | sudo bash -s -- --domain portal.faktupilot.pl
+#   curl -sSL https://raw.githubusercontent.com/PrzemekPrzemo/Faktury/main/scripts/UpdateFaktury.sh | sudo bash -s -- --domain portal.billu.pl
 #
 # Lub z podanym branchem:
 #   curl -sSL ... | sudo bash -s -- --branch claude/invoice-verification-system-E8wzz
@@ -134,7 +134,7 @@ HTTPDOCS="${HTTPDOCS_OVERRIDE:-$HTTPDOCS}"
 
 if [[ -z "$HTTPDOCS" || ! -d "$HTTPDOCS" ]]; then
     fail "Nie znaleziono katalogu instalacji!"
-    echo "   Uruchom z: --domain portal.faktupilot.pl"
+    echo "   Uruchom z: --domain portal.billu.pl"
     echo "   Lub:       --path /var/www/vhosts/domena/httpdocs"
     exit 1
 fi
@@ -236,7 +236,7 @@ echo ""
 # ══════════════════════════════════════════════════════
 echo -e "${BOLD}[1/8] Backup konfiguracji...${NC}"
 
-BACKUP_DIR="/tmp/faktupilot_backup_${TIMESTAMP}"
+BACKUP_DIR="/tmp/billu_backup_${TIMESTAMP}"
 mkdir -p "$BACKUP_DIR/config"
 
 for CFG in database.php app.php mail.php; do
@@ -277,7 +277,7 @@ echo ""
 # ══════════════════════════════════════════════════════
 echo -e "${BOLD}[3/8] Pobieranie z GitHub (branch: ${BRANCH})...${NC}"
 
-TEMP_DIR="/tmp/faktupilot_update_$$"
+TEMP_DIR="/tmp/billu_update_$$"
 rm -rf "$TEMP_DIR"
 
 git config --global --add safe.directory '*' 2>/dev/null || true
@@ -459,7 +459,7 @@ echo ""
 rm -rf "$TEMP_DIR"
 
 # ── Stare backupy — zachowaj 5 ostatnich ────────────
-ls -1dt /tmp/faktupilot_backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
+ls -1dt /tmp/billu_backup_* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
 
 # ══════════════════════════════════════════════════════
 # PODSUMOWANIE
