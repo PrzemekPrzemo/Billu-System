@@ -1,15 +1,14 @@
 -- Migration v43.0: HR aggregate — attendance, PPK, onboarding, client settings,
 -- employee documents, payroll budgets, leave types
+-- Schema aligned with Faktury hr-payroll-system-design-WnwSV branch
 
 CREATE TABLE IF NOT EXISTS hr_attendance (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     employee_id INT UNSIGNED NOT NULL,
     client_id INT UNSIGNED NOT NULL,
     work_date DATE NOT NULL,
-    status ENUM('obecny','urlop','l4','nieobecny','delegacja','zdalna','inne') NOT NULL DEFAULT 'obecny',
-    work_start TIME DEFAULT NULL,
-    work_end TIME DEFAULT NULL,
-    break_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    type ENUM('work','vacation','sick','holiday','remote','other') NOT NULL DEFAULT 'work',
+    work_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 480,
     overtime_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     notes VARCHAR(500) DEFAULT NULL,
     created_by_type ENUM('office','employee','client') NOT NULL DEFAULT 'office',
@@ -76,28 +75,30 @@ CREATE TABLE IF NOT EXISTS hr_documents (
     original_name VARCHAR(512) NOT NULL,
     mime_type VARCHAR(100) DEFAULT NULL,
     file_size INT UNSIGNED NOT NULL DEFAULT 0,
+    expiry_date DATE DEFAULT NULL,
+    alert_sent_30 TINYINT(1) NOT NULL DEFAULT 0,
+    alert_sent_14 TINYINT(1) NOT NULL DEFAULT 0,
+    alert_sent_7 TINYINT(1) NOT NULL DEFAULT 0,
     is_confidential TINYINT(1) NOT NULL DEFAULT 0,
     uploaded_by_type ENUM('office','employee','client') NOT NULL DEFAULT 'office',
     uploaded_by_id INT UNSIGNED NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_employee (employee_id),
     INDEX idx_client (client_id),
-    INDEX idx_type (document_type)
+    INDEX idx_expiry (expiry_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS hr_payroll_budgets (
+CREATE TABLE IF NOT EXISTS hr_payroll_budget (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id INT UNSIGNED NOT NULL,
+    budget_year SMALLINT UNSIGNED NOT NULL,
     period_month TINYINT UNSIGNED NOT NULL,
-    period_year SMALLINT UNSIGNED NOT NULL,
-    department VARCHAR(100) DEFAULT NULL,
-    budgeted_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
-    actual_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+    planned_gross DECIMAL(14,2) NOT NULL DEFAULT 0,
+    planned_cost DECIMAL(14,2) NOT NULL DEFAULT 0,
     notes TEXT DEFAULT NULL,
-    created_by_type VARCHAR(16) DEFAULT NULL,
-    created_by_id INT UNSIGNED DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_client_period (client_id, period_year, period_month)
+    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_client_period (client_id, budget_year, period_month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS hr_leave_types (
@@ -114,7 +115,6 @@ CREATE TABLE IF NOT EXISTS hr_leave_types (
     INDEX idx_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Default leave types (global)
 INSERT IGNORE INTO hr_leave_types (client_id, name, code, days_per_year, is_paid, requires_approval, color) VALUES
 (NULL, 'Urlop wypoczynkowy', 'UW', 26, 1, 1, '#008F8F'),
 (NULL, 'Urlop na żądanie', 'UZ', 4, 1, 0, '#0B2430'),
