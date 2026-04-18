@@ -107,7 +107,6 @@ $router->post('/admin/batches/{id}/finalize', [AdminController::class, 'finalize
 $router->get('/admin/reports/{id}/download', [AdminController::class, 'downloadReport']);
 $router->get('/admin/settings', [AdminController::class, 'settings']);
 $router->post('/admin/settings', [AdminController::class, 'settingsUpdate']);
-// Mobile API management
 $router->get('/admin/api/sessions', [AdminController::class, 'apiSessions']);
 $router->post('/admin/api/sessions/revoke-all', [AdminController::class, 'apiRevokeAllSessions']);
 $router->post('/admin/api/sessions/{id}/revoke', [AdminController::class, 'apiRevokeSession']);
@@ -146,27 +145,17 @@ $router->get('/admin/security', [AdminController::class, 'security']);
 $router->get('/admin/security-scan', [AdminController::class, 'securityScan']);
 $router->post('/admin/security-scan', [AdminController::class, 'securityScan']);
 $router->post('/admin/security-scan/ignore', [AdminController::class, 'securityScanIgnore']);
-
-// Admin: Duplicates report (F2)
 $router->get('/admin/duplicates', [AdminController::class, 'duplicatesReport']);
 $router->post('/admin/duplicates/scan', [AdminController::class, 'duplicatesScan']);
 $router->post('/admin/duplicates/{id}/review', [AdminController::class, 'duplicateReview']);
-
-// Admin: SMTP test
 $router->post('/admin/settings/test-smtp', [AdminController::class, 'testSmtp']);
 $router->post('/admin/offices/{id}/test-smtp', [AdminController::class, 'testOfficeSmtp']);
-
-// Admin: Demo management
 $router->get('/admin/demo', [AdminController::class, 'demoManagement']);
 $router->post('/admin/demo/reset', [AdminController::class, 'demoReset']);
 $router->post('/admin/demo/passwords', [AdminController::class, 'demoPasswordReset']);
-
-// Admin - Client SMTP & Invoice Sending
 $router->post('/admin/clients/{id}/test-smtp', [AdminController::class, 'testClientSmtp']);
 $router->post('/admin/offices/{id}/enable-invoice-sending', [AdminController::class, 'enableInvoiceSendingForOffice']);
 $router->post('/admin/offices/{id}/disable-invoice-sending', [AdminController::class, 'disableInvoiceSendingForOffice']);
-
-// Admin - Email Templates
 $router->get('/admin/email-templates', [AdminController::class, 'emailTemplates']);
 $router->get('/admin/email-templates/{key}', [AdminController::class, 'emailTemplateEdit']);
 $router->post('/admin/email-templates/{key}', [AdminController::class, 'emailTemplateUpdate']);
@@ -197,7 +186,7 @@ $router->post('/office/notifications/read', [OfficeController::class, 'notificat
 $router->get('/office/invoices/{id}/comments', [OfficeController::class, 'invoiceComments']);
 $router->get('/office/erp-export', [OfficeController::class, 'erpExportForm']);
 $router->post('/office/erp-export', [OfficeController::class, 'erpExport']);
-$router->get('/office/security', [OfficeController::class, ['security']]);
+$router->get('/office/security', [OfficeController::class, 'security']);
 $router->get('/office/employees', [OfficeController::class, 'employees']);
 $router->get('/office/employees/create', [OfficeController::class, 'employeeCreateForm']);
 $router->post('/office/employees/create', [OfficeController::class, 'employeeCreate']);
@@ -209,8 +198,6 @@ $router->get('/office/settings', [OfficeController::class, 'settingsForm']);
 $router->post('/office/settings', [OfficeController::class, 'settingsUpdate']);
 $router->get('/office/email-settings', [OfficeController::class, 'emailSettings']);
 $router->post('/office/email-settings', [OfficeController::class, 'emailSettingsUpdate']);
-
-// Office: Messages & Tasks
 $router->get('/office/messages', [OfficeController::class, 'messages']);
 $router->get('/office/messages/preferences', [OfficeController::class, 'messageNotificationPrefs']);
 $router->post('/office/messages/preferences', [OfficeController::class, 'messageNotificationPrefs']);
@@ -225,35 +212,23 @@ $router->post('/office/tasks/{id}/update', [OfficeController::class, 'taskUpdate
 $router->post('/office/tasks/{id}/delete', [OfficeController::class, 'taskDelete']);
 $router->get('/office/tasks/billing', [OfficeController::class, 'tasksBilling']);
 $router->post('/office/tasks/{id}/billing', [OfficeController::class, 'taskBillingUpdate']);
-
-// Tax payments
 $router->get('/office/tax-payments', [OfficeController::class, 'taxPayments']);
 $router->post('/office/tax-payments/save', [OfficeController::class, 'taxPaymentsSave']);
-
-// Office: Tax Calendar (F1)
 $router->get('/office/tax-calendar', [OfficeController::class, 'taxCalendar']);
 $router->get('/office/tax-calendar/config/{id}', [OfficeController::class, 'taxCalendarConfig']);
 $router->post('/office/tax-calendar/config/{id}', [OfficeController::class, 'taxCalendarConfigSave']);
 $router->post('/office/tax-calendar/event', [OfficeController::class, 'taxCalendarAddEvent']);
 $router->post('/office/tax-calendar/event/{id}/delete', [OfficeController::class, 'taxCalendarDeleteEvent']);
-
-// Office: Client Workflow Status (F6)
 $router->post('/office/clients/{id}/status', [OfficeController::class, 'clientStatusUpdate']);
-
-// Office: Client Notes (F4)
 $router->get('/office/clients/{id}/notes', [OfficeController::class, 'clientNotes']);
 $router->post('/office/clients/{id}/notes', [OfficeController::class, 'clientNotesSave']);
 $router->post('/office/clients/{id}/notes/toggle-pin', [OfficeController::class, 'clientNoteTogglePin']);
 $router->get('/office/clients/{id}/vat-settlement', [OfficeController::class, 'clientVatSettlement']);
-
-// Office: Client File sharing
 $router->get('/office/clients/{id}/files', [OfficeController::class, 'clientFiles']);
 $router->post('/office/clients/{id}/files/upload', [OfficeController::class, 'clientFileUpload']);
 $router->get('/office/files/{id}/download', [OfficeController::class, 'clientFileDownload']);
 $router->post('/office/files/{id}/delete', [OfficeController::class, 'clientFileDelete']);
 $router->post('/office/clients/{id}/file-storage-path', [OfficeController::class, 'clientFileStoragePath']);
-
-// Office: Duplicates Report (F2)
 $router->get('/office/tax-calculator', [OfficeController::class, 'taxCalculator']);
 $router->get('/office/tax-calculator/pdf', [OfficeController::class, 'taxCalculatorPdf']);
 $router->post('/office/tax-calculator/save', [OfficeController::class, 'taxCalculatorSave']);
@@ -300,8 +275,6 @@ $router->get('/client/invoices/comments', [ClientController::class, 'getComments
 $router->post('/client/invoices/toggle-paid', [ClientController::class, 'toggleInvoicePaid']);
 $router->get('/client/security', [ClientController::class, 'security']);
 $router->post('/client/account/delete', [ClientController::class, 'accountDelete']);
-
-// Client: Messages & Tasks
 $router->get('/client/messages', [ClientController::class, 'messages']);
 $router->get('/client/messages/preferences', [ClientController::class, 'messageNotificationPrefs']);
 $router->post('/client/messages/preferences', [ClientController::class, 'messageNotificationPrefs']);
@@ -312,28 +285,16 @@ $router->post('/client/messages/{id}/reply', [ClientController::class, 'messageR
 $router->get('/client/tasks', [ClientController::class, 'tasks']);
 $router->get('/client/tasks/attachment/{id}', [ClientController::class, 'taskAttachment']);
 $router->post('/client/tasks/{id}/status', [ClientController::class, 'taskUpdateStatus']);
-
-// Client: File sharing
 $router->get('/client/files', [ClientController::class, 'files']);
 $router->post('/client/files/upload', [ClientController::class, 'fileUpload']);
 $router->get('/client/files/{id}/download', [ClientController::class, 'fileDownload']);
 $router->post('/client/files/{id}/delete', [ClientController::class, 'fileDelete']);
-
-// Tax payments
 $router->get('/client/tax-payments', [ClientController::class, 'taxPayments']);
-
-// Client: Tax Calendar (F1)
 $router->get('/client/tax-calendar', [ClientController::class, 'taxCalendar']);
 $router->get('/client/calculators', [ClientController::class, 'calculators']);
-
-// Client: Duplicate check AJAX (F2)
 $router->post('/client/sales/check-duplicate', [ClientController::class, 'checkSalesInvoiceDuplicate']);
-
-// Client: Bank account utilities (F4, F5)
 $router->post('/client/company/bank-account/identify-bank', [ClientController::class, 'bankAccountIdentifyBank']);
 $router->post('/client/company/bank-account/whitelist-check', [ClientController::class, 'bankAccountWhitelistCheck']);
-
-// Company profile
 $router->get('/client/company', [ClientController::class, 'companyProfile']);
 $router->get('/client/company/gus-lookup', [ClientController::class, 'companyGusLookup']);
 $router->post('/client/company', [ClientController::class, 'companyProfileUpdate']);
@@ -342,14 +303,10 @@ $router->post('/client/company/logo/delete', [ClientController::class, 'companyL
 $router->post('/client/company/bank-account', [ClientController::class, 'bankAccountCreate']);
 $router->post('/client/company/bank-account/{id}/delete', [ClientController::class, 'bankAccountDelete']);
 $router->post('/client/company/bank-account/{id}/set-default', [ClientController::class, 'bankAccountSetDefault']);
-
-// Services catalog
 $router->get('/client/services', [ClientController::class, 'services']);
 $router->post('/client/services/create', [ClientController::class, 'serviceCreate']);
 $router->post('/client/services/{id}/update', [ClientController::class, 'serviceUpdate']);
 $router->post('/client/services/{id}/delete', [ClientController::class, 'serviceDelete']);
-
-// Contractors
 $router->get('/client/contractors', [ClientController::class, 'contractors']);
 $router->get('/client/contractors/create', [ClientController::class, 'contractorCreateForm']);
 $router->post('/client/contractors/create', [ClientController::class, 'contractorCreate']);
@@ -363,8 +320,6 @@ $router->post('/client/contractors/{id}/logo', [ClientController::class, 'contra
 $router->post('/client/contractors/{id}/logo/delete', [ClientController::class, 'contractorLogoDelete']);
 $router->get('/client/contractors/search', [ClientController::class, 'contractorSearch']);
 $router->get('/client/contractors/gus-lookup', [ClientController::class, 'contractorGusLookup']);
-
-// Issued invoices (sales)
 $router->get('/client/sales', [ClientController::class, 'issuedInvoices']);
 $router->get('/client/sales/dashboard', [ClientController::class, 'salesDashboard']);
 $router->get('/client/sales/create', [ClientController::class, 'issuedInvoiceCreate']);
