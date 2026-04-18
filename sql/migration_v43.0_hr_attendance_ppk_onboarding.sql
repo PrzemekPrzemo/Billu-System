@@ -1,6 +1,6 @@
--- Migration v43.0: HR aggregate — attendance, PPK, onboarding, client settings,
+-- Migration v43.0: HR aggregate (FINAL) — attendance, PPK, onboarding, client settings,
 -- employee documents, payroll budgets, leave types
--- Schema aligned with Faktury hr-payroll-system-design-WnwSV branch
+-- Schema fully aligned with Faktury hr-payroll-system-design-WnwSV
 
 CREATE TABLE IF NOT EXISTS hr_attendance (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -23,17 +23,13 @@ CREATE TABLE IF NOT EXISTS hr_ppk_enrollments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     employee_id INT UNSIGNED NOT NULL,
     client_id INT UNSIGNED NOT NULL,
-    enrolled_at DATE NOT NULL,
-    opt_out_at DATE DEFAULT NULL,
-    employee_contribution_rate DECIMAL(4,2) NOT NULL DEFAULT 2.00,
-    employer_contribution_rate DECIMAL(4,2) NOT NULL DEFAULT 1.50,
-    employee_voluntary_rate DECIMAL(4,2) NOT NULL DEFAULT 0.00,
-    employer_voluntary_rate DECIMAL(4,2) NOT NULL DEFAULT 0.00,
-    financial_institution VARCHAR(255) DEFAULT NULL,
-    status ENUM('active','opted_out','suspended') NOT NULL DEFAULT 'active',
+    action ENUM('enroll','opt_out') NOT NULL,
+    effective_date DATE NOT NULL,
+    institution VARCHAR(255) DEFAULT NULL,
+    employee_rate DECIMAL(4,2) NOT NULL DEFAULT 2.00,
+    employer_rate DECIMAL(4,2) NOT NULL DEFAULT 1.50,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_employee (employee_id),
+    INDEX idx_employee (employee_id),
     INDEX idx_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -41,28 +37,25 @@ CREATE TABLE IF NOT EXISTS hr_onboarding_tasks (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     employee_id INT UNSIGNED NOT NULL,
     client_id INT UNSIGNED NOT NULL,
-    task_name VARCHAR(255) NOT NULL,
-    task_description TEXT DEFAULT NULL,
-    category ENUM('dokumenty','szkolenia','dostepy','sprzet','inne') NOT NULL DEFAULT 'inne',
-    is_required TINYINT(1) NOT NULL DEFAULT 1,
-    due_date DATE DEFAULT NULL,
-    completed_at DATETIME DEFAULT NULL,
-    completed_by_type ENUM('office','employee','client') DEFAULT NULL,
-    completed_by_id INT UNSIGNED DEFAULT NULL,
-    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    phase ENUM('onboarding','offboarding') NOT NULL DEFAULT 'onboarding',
+    category VARCHAR(50) NOT NULL DEFAULT 'other',
+    title VARCHAR(255) NOT NULL,
+    is_done TINYINT(1) NOT NULL DEFAULT 0,
+    done_at DATETIME DEFAULT NULL,
+    done_by_type ENUM('office','employee','client') DEFAULT NULL,
+    done_by_id INT UNSIGNED DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_employee (employee_id),
+    INDEX idx_employee_phase (employee_id, phase),
     INDEX idx_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS hr_client_settings (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     client_id INT UNSIGNED NOT NULL,
-    setting_key VARCHAR(100) NOT NULL,
-    setting_value TEXT DEFAULT NULL,
+    hr_enabled TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_client_key (client_id, setting_key)
+    UNIQUE KEY uk_client (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS hr_documents (
