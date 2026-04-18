@@ -11,6 +11,8 @@ use App\Controllers\AuthController;
 use App\Controllers\AdminController;
 use App\Controllers\ClientController;
 use App\Controllers\OfficeController;
+use App\Controllers\AdminAdsController;
+use App\Controllers\AdvertisementController;
 
 // Config
 $appConfig = require __DIR__ . '/../config/app.php';
@@ -22,7 +24,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-XSS-Protection: 1; mode=block');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 
-// ── REST API Intercept ──────────────────────────────────
+// ── REST API Intercept ──────────────────────────────
 // Must run before session start and web routes.
 // All /api/* requests are handled by ApiKernel (JSON, JWT auth).
 if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
@@ -30,7 +32,7 @@ if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/api/')) {
     $apiKernel->handle($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
     exit; // ApiKernel always exits
 }
-// ───────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────
 
 // Session
 Session::start();
@@ -42,7 +44,7 @@ Language::setLocale($locale);
 // Router
 $router = new Router();
 
-// ── Public Auth Routes ─────────────────────────────
+// ── Public Auth Routes ─────────────────────────────────
 $router->get('/', [AuthController::class, 'loginForm']);
 $router->get('/login', [AuthController::class, 'loginForm']);
 $router->post('/login', [AuthController::class, 'login']);
@@ -68,7 +70,7 @@ $router->post('/two-factor-setup', [AuthController::class, 'twoFactorEnable']);
 $router->get('/two-factor-recovery', [AuthController::class, 'twoFactorRecovery']);
 $router->post('/two-factor-disable', [AuthController::class, 'twoFactorDisable']);
 
-// ── Admin Routes (/admin) ──────────────────────────
+// ── Admin Routes (/admin) ────────────────────────────
 $router->get('/admin', [AdminController::class, 'dashboard']);
 $router->get('/admin/analytics', [AdminController::class, 'analytics']);
 $router->get('/admin/clients', [AdminController::class, 'clients']);
@@ -169,7 +171,7 @@ $router->get('/admin/email-templates', [AdminController::class, 'emailTemplates'
 $router->get('/admin/email-templates/{key}', [AdminController::class, 'emailTemplateEdit']);
 $router->post('/admin/email-templates/{key}', [AdminController::class, 'emailTemplateUpdate']);
 
-// ── Office Routes (/office) ────────────────────────
+// ── Office Routes (/office) ──────────────────────────
 $router->get('/office', [OfficeController::class, 'dashboard']);
 $router->get('/office/clients', [OfficeController::class, 'clients']);
 $router->get('/office/clients/{id}/edit', [OfficeController::class, 'clientEdit']);
@@ -195,7 +197,7 @@ $router->post('/office/notifications/read', [OfficeController::class, 'notificat
 $router->get('/office/invoices/{id}/comments', [OfficeController::class, 'invoiceComments']);
 $router->get('/office/erp-export', [OfficeController::class, 'erpExportForm']);
 $router->post('/office/erp-export', [OfficeController::class, 'erpExport']);
-$router->get('/office/security', [OfficeController::class, 'security']);
+$router->get('/office/security', [OfficeController::class, ['security']]);
 $router->get('/office/employees', [OfficeController::class, 'employees']);
 $router->get('/office/employees/create', [OfficeController::class, 'employeeCreateForm']);
 $router->post('/office/employees/create', [OfficeController::class, 'employeeCreate']);
@@ -260,7 +262,7 @@ $router->get('/office/duplicates', [OfficeController::class, 'duplicatesReport']
 $router->post('/office/duplicates/scan', [OfficeController::class, 'duplicatesScan']);
 $router->post('/office/duplicates/{id}/review', [OfficeController::class, 'duplicateReview']);
 
-// ── Client Routes (/client) ────────────────────────
+// ── Client Routes (/client) ──────────────────────────
 $router->get('/client', [ClientController::class, 'dashboard']);
 $router->get('/client/invoices/detail', [ClientController::class, 'getInvoiceDetail']);
 $router->get('/client/invoices/visualization', [ClientController::class, 'getInvoiceVisualization']);
@@ -285,9 +287,6 @@ $router->post('/client/ksef/environment', [ClientController::class, 'ksefSaveEnv
 $router->post('/client/ksef/upo-toggle', [ClientController::class, 'ksefToggleUpo']);
 $router->get('/client/ksef/test', [ClientController::class, 'ksefTestConnection']);
 $router->get('/client/ksef/diagnostic', [ClientController::class, 'ksefDiagnostic']);
-// Certificate enrollment disabled for clients - they must use certificates generated in KSeF system
-// $router->post('/client/ksef/enroll-cert', [ClientController::class, 'ksefEnrollCert']);
-// $router->get('/client/ksef/check-enrollment', [ClientController::class, 'ksefCheckEnrollment']);
 $router->post('/client/ksef/delete-ksef-cert', [ClientController::class, 'ksefDeleteKsefCert']);
 $router->get('/client/ksef/certificates', [ClientController::class, 'ksefCertificates']);
 $router->get('/client/reports/rejected/{batchId}', [ClientController::class, 'downloadRejected']);
@@ -394,6 +393,8 @@ $router->get('/client/sales/{id}/pdf', [ClientController::class, 'issuedInvoiceP
 $router->get('/client/sales/{id}/upo', [ClientController::class, 'issuedInvoiceUpo']);
 $router->post('/client/sales/{id}/duplicate', [ClientController::class, 'issuedInvoiceDuplicate']);
 $router->get('/client/sales/{id}/correction', [ClientController::class, 'issuedInvoiceCorrection']);
+
+require __DIR__ . '/routes_advertisements.php';
 
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
