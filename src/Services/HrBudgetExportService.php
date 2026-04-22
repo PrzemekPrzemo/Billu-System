@@ -15,10 +15,10 @@ class HrBudgetExportService
     private static string $storageDir = __DIR__ . '/../../storage/hr/reports';
 
     private static array $monthNames = [
-        1  => 'Stycze\u0144',   2  => 'Luty',       3  => 'Marzec',
-        4  => 'Kwiecie\u0144',  5  => 'Maj',         6  => 'Czerwiec',
-        7  => 'Lipiec',    8  => 'Sierpie\u0144',    9  => 'Wrzesie\u0144',
-        10 => 'Pa\u017adziernik', 11 => 'Listopad',  12 => 'Grudzie\u0144',
+        1  => 'Styczeń',   2  => 'Luty',       3  => 'Marzec',
+        4  => 'Kwiecień',  5  => 'Maj',         6  => 'Czerwiec',
+        7  => 'Lipiec',    8  => 'Sierpień',    9  => 'Wrzesień',
+        10 => 'Październik', 11 => 'Listopad',  12 => 'Grudzień',
     ];
 
     public static function export(int $clientId, int $year, array $actualByMonth): string
@@ -31,10 +31,10 @@ class HrBudgetExportService
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle("Bud\u017cet {$year}");
+        $sheet->setTitle("Budżet {$year}");
 
         $sheet->mergeCells('A1:G1');
-        $sheet->setCellValue('A1', "Plan bud\u017cetu p\u0142ac vs. wykonanie \u2014 {$year}");
+        $sheet->setCellValue('A1', "Plan budżetu płac vs. wykonanie — {$year}");
         $sheet->getStyle('A1')->applyFromArray([
             'font'      => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']],
@@ -43,13 +43,13 @@ class HrBudgetExportService
         $sheet->getRowDimension(1)->setRowHeight(24);
 
         $headers = [
-            'A2' => 'Miesi\u0105c',
+            'A2' => 'Miesiąc',
             'B2' => 'Plan brutto (PLN)',
             'C2' => 'Plan koszt prac. (PLN)',
             'D2' => 'Wykonanie brutto (PLN)',
             'E2' => 'Wykonanie koszt prac. (PLN)',
-            'F2' => '\u0394 Brutto (PLN)',
-            'G2' => '\u0394 Koszt (PLN)',
+            'F2' => 'Δ Brutto (PLN)',
+            'G2' => 'Δ Koszt (PLN)',
         ];
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
@@ -62,17 +62,17 @@ class HrBudgetExportService
         $sheet->getRowDimension(2)->setRowHeight(30);
 
         $numFmt = '#,##0.00';
-        $row    = 3;
+        $row = 3;
         $totals = ['plan_gross' => 0, 'plan_cost' => 0, 'actual_gross' => 0, 'actual_cost' => 0];
 
         for ($m = 1; $m <= 12; $m++) {
-            $plan   = $budget[$m]   ?? null;
+            $plan = $budget[$m] ?? null;
             $actual = $actualByMonth[$m] ?? null;
 
             $planGross  = (float) ($plan['planned_gross'] ?? 0);
             $planCost   = (float) ($plan['planned_cost']  ?? 0);
-            $actGross   = (float) ($actual['gross_salary']        ?? 0);
-            $actCost    = (float) ($actual['employer_total_cost'] ?? 0);
+            $actGross   = (float) ($actual['gross_salary']         ?? 0);
+            $actCost    = (float) ($actual['employer_total_cost']  ?? 0);
             $deltaGross = $actGross - $planGross;
             $deltaCost  = $actCost  - $planCost;
 
