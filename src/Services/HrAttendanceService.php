@@ -8,10 +8,10 @@ use App\Models\HrAttendance;
 class HrAttendanceService
 {
     private static array $monthNames = [
-        1  => 'Stycze\u0144',   2  => 'Luty',       3  => 'Marzec',
-        4  => 'Kwiecie\u0144',  5  => 'Maj',         6  => 'Czerwiec',
-        7  => 'Lipiec',    8  => 'Sierpie\u0144',    9  => 'Wrzesie\u0144',
-        10 => 'Pa\u017adziernik', 11 => 'Listopad',  12 => 'Grudzie\u0144',
+        1  => 'Styczeń',   2  => 'Luty',       3  => 'Marzec',
+        4  => 'Kwiecień',  5  => 'Maj',         6  => 'Czerwiec',
+        7  => 'Lipiec',    8  => 'Sierpień',    9  => 'Wrzesień',
+        10 => 'Październik', 11 => 'Listopad',  12 => 'Grudzień',
     ];
 
     public static function buildMonthGrid(int $clientId, int $month, int $year, array $employees): array
@@ -39,11 +39,11 @@ class HrAttendanceService
         $totals = [];
 
         foreach ($employees as $emp) {
-            $empId        = (int) $emp['id'];
-            $empAtt       = $attendanceByEmp[$empId] ?? [];
-            $grid[$empId] = [];
-            $workMin      = 0;
-            $overtimeMin  = 0;
+            $empId          = (int) $emp['id'];
+            $empAtt         = $attendanceByEmp[$empId] ?? [];
+            $grid[$empId]   = [];
+            $workMin        = 0;
+            $overtimeMin    = 0;
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 if (isset($empAtt[$d])) {
@@ -89,10 +89,10 @@ class HrAttendanceService
         $easterMonth = intdiv($h + $l - 7 * $m + 114, 31);
         $easterDay   = (($h + $l - 7 * $m + 114) % 31) + 1;
 
-        $easter        = mktime(0, 0, 0, $easterMonth, $easterDay, $year);
-        $easterMonday  = date('Y-m-d', $easter + 86400);
-        $pentecost     = date('Y-m-d', $easter + 49 * 86400);
-        $corpusChristi = date('Y-m-d', $easter + 60 * 86400);
+        $easter       = mktime(0, 0, 0, $easterMonth, $easterDay, $year);
+        $easterMonday = date('Y-m-d', $easter + 86400);
+        $pentecost    = date('Y-m-d', $easter + 49 * 86400);
+        $corpusChristi= date('Y-m-d', $easter + 60 * 86400);
 
         return [
             sprintf('%04d-01-01', $year),
@@ -120,7 +120,7 @@ class HrAttendanceService
             [$runId, $clientId]
         );
         if (!$run || $run['status'] === 'locked') {
-            throw new \RuntimeException('Lista p\u0142ac nie istnieje lub jest zablokowana.');
+            throw new \RuntimeException('Lista płac nie istnieje lub jest zablokowana.');
         }
 
         $employees = $db->fetchAll(
@@ -138,9 +138,7 @@ class HrAttendanceService
             $baseSalary  = (float) $emp['base_salary'];
             $overtimeMin = HrAttendance::getTotalOvertimeForPeriod($empId, $month, $year);
 
-            if ($overtimeMin <= 0) {
-                continue;
-            }
+            if ($overtimeMin <= 0) continue;
 
             $hourlyRate  = $baseSalary / 160;
             $overtimePay = round(($overtimeMin / 60) * $hourlyRate * 1.5, 2);
@@ -152,9 +150,7 @@ class HrAttendanceService
                 [$runId, $empId]
             );
 
-            if ($affected > 0) {
-                $updated++;
-            }
+            if ($affected > 0) $updated++;
         }
 
         return $updated;
