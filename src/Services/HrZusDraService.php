@@ -7,6 +7,7 @@ use App\Core\HrDatabase;
 use App\Models\HrPayrollItem;
 use App\Models\HrPayrollRun;
 use App\Models\HrZusDeclaration;
+use App\Services\HrEncryptionService;
 
 class HrZusDraService
 {
@@ -19,12 +20,12 @@ class HrZusDraService
             throw new \RuntimeException('Payroll run not found or access denied');
         }
         if ($run['status'] === 'draft') {
-            throw new \RuntimeException('Lista p\u0142ac musi by\u0107 co najmniej obliczona przed wygenerowaniem deklaracji ZUS');
+            throw new \RuntimeException('Lista płac musi być co najmniej obliczona przed wygenerowaniem deklaracji ZUS');
         }
 
         $items = HrPayrollItem::findByRun($runId);
         if (empty($items)) {
-            throw new \RuntimeException('Brak pozycji listy p\u0142ac');
+            throw new \RuntimeException('Brak pozycji listy płac');
         }
 
         $hrDb = HrDatabase::hrDbName();
@@ -54,41 +55,35 @@ class HrZusDraService
         return $path;
     }
 
-    private static function buildXml(
-        array $run, array $items, array $client,
-        string $payerNip, string $payerName,
-        string $periodStr, int $month, int $year
-    ): string {
-        $now           = date('Y-m-d\\TH:i:s');
+    private static function buildXml(array $run, array $items, array $client, string $payerNip, string $payerName, string $periodStr, int $month, int $year): string
+    {
+        $now = date('Y-m-d\TH:i:s');
         $payerNipClean = preg_replace('/[^0-9]/', '', $payerNip);
 
-        $totals = array_fill_keys([
-            'emer_emp','rent_emp','chor_emp','emer_er','rent_er',
-            'wyp_er','fp_er','fgsp_er','gross','zus_emp','zus_er'
-        ], 0.0);
+        $totalEmerEmp = 0.0; $totalRentEmp = 0.0; $totalChorEmp = 0.0;
+        $totalEmerEr = 0.0; $totalRentEr = 0.0; $totalWypEr = 0.0;
+        $totalFpEr = 0.0; $totalFgspEr = 0.0;
+        $totalGross = 0.0; $totalZusEmp = 0.0; $totalZusEr = 0.0;
 
         foreach ($items as $item) {
-            $totals['emer_emp'] += (float) $item['zus_emerytalne_emp'];
-            $totals['rent_emp'] += (float) $item['zus_rentowe_emp'];
-            $totals['chor_emp'] += (float) $item['zus_chorobowe_emp'];
-            $totals['emer_er']  += (float) $item['zus_emerytalne_emp2'];
-            $totals['rent_er']  += (float) $item['zus_rentowe_emp2'];
-            $totals['wyp_er']   += (float) $item['zus_wypadkowe_emp2'];
-            $totals['fp_er']    += (float) $item['zus_fp_emp2'];
-            $totals['fgsp_er']  += (float) $item['zus_fgsp_emp2'];
-            $totals['gross']    += (float) $item['gross_salary'];
-            $totals['zus_emp']  += (float) $item['zus_total_employee'];
-            $totals['zus_er']   += (float) $item['zus_total_employer'];
+            $totalEmerEmp += (float) $item['zus_emerytalne_emp'];
+            $totalRentEmp += (float) $item['zus_rentowe_emp'];
+            $totalChorEmp += (float) $item['zus_chorobowe_emp'];
+            $totalEmerEr  += (float) $item['zus_emerytalne_emp2'];
+            $totalRentEr  += (float) $item['zus_rentowe_emp2'];
+            $totalWypEr   += (float) $item['zus_wypadkowe_emp2'];
+            $totalFpEr    += (float) $item['zus_fp_emp2'];
+            $totalFgspEr  += (float) $item['zus_fgsp_emp2'];
+            $totalGross   += (float) $item['gross_salary'];
+            $totalZusEmp  += (float) $item['zus_total_employee'];
+            $totalZusEr   += (float) $item['zus_total_employer'];
         }
 
-        $totalZusAll = round($totals['zus_emp'] + $totals['zus_er'], 2);
-        $fn  = fn($v) => number_format((float)$v, 2, '.', '');
+        $totalZusAll = round($totalZusEmp + $totalZusEr, 2);
+        $fn = fn($v) => number_format((float)$v, 2, '.', '');
         $esc = fn(string $s) => htmlspecialchars($s, ENT_XML1, 'UTF-8');
 
         $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<!-- Deklaracja ZUS DRA + RCA wygenerowana przez BiLLU HR -->' . "\n";
-        $xml .= '<!-- Data generowania: ' . $now . ' -->' . "\n";
-        $xml .= '<!-- UWAGA: Zweryfikuj dane przed wys\u0142aniem do ZUS -->' . "\n";
         $xml .= '<dokumenty xmlns="http://www.zus.pl/2013/DRA" wersja="1.0">' . "\n";
 
         $xml .= '  <dokument typ="DRA">' . "\n";
@@ -98,40 +93,30 @@ class HrZusDraService
         $xml .= '      <okres-rozliczeniowy>' . $periodStr . '</okres-rozliczeniowy>' . "\n";
         $xml .= '      <liczba-ubezpieczonych>' . count($items) . '</liczba-ubezpieczonych>' . "\n";
         $xml .= '    </naglowek>' . "\n";
-        $xml .= '    <blok-I>' . "\n";
-        $xml .= '      <NIP>' . $esc($payerNipClean) . '</NIP>' . "\n";
-        $xml .= '      <nazwa-skrocona>' . $esc(mb_substr($payerName, 0, 50)) . '</nazwa-skrocona>' . "\n";
-        $xml .= '    </blok-I>' . "\n";
+        $xml .= '    <blok-I><NIP>' . $esc($payerNipClean) . '</NIP><nazwa-skrocona>' . $esc(mb_substr($payerName, 0, 50)) . '</nazwa-skrocona></blok-I>' . "\n";
         $xml .= '    <blok-III>' . "\n";
-        $xml .= '      <podstawa-wymiaru-skladek-emerytalna-rentowa>' . $fn($totals['gross']) . '</podstawa-wymiaru-skladek-emerytalna-rentowa>' . "\n";
-        $xml .= '      <skladki-na-ubezpieczenie-emerytalne>' . $fn($totals['emer_emp'] + $totals['emer_er']) . '</skladki-na-ubezpieczenie-emerytalne>' . "\n";
-        $xml .= '      <skladki-na-ubezpieczenie-rentowe>' . $fn($totals['rent_emp'] + $totals['rent_er']) . '</skladki-na-ubezpieczenie-rentowe>' . "\n";
-        $xml .= '      <skladki-na-ubezpieczenie-chorobowe>' . $fn($totals['chor_emp']) . '</skladki-na-ubezpieczenie-chorobowe>' . "\n";
-        $xml .= '      <skladki-na-ubezpieczenie-wypadkowe>' . $fn($totals['wyp_er']) . '</skladki-na-ubezpieczenie-wypadkowe>' . "\n";
-        $xml .= '      <fundusz-pracy>' . $fn($totals['fp_er']) . '</fundusz-pracy>' . "\n";
-        $xml .= '      <fgsp>' . $fn($totals['fgsp_er']) . '</fgsp>' . "\n";
+        $xml .= '      <podstawa-wymiaru-skladek-emerytalna-rentowa>' . $fn($totalGross) . '</podstawa-wymiaru-skladek-emerytalna-rentowa>' . "\n";
+        $xml .= '      <skladki-na-ubezpieczenie-emerytalne>' . $fn($totalEmerEmp + $totalEmerEr) . '</skladki-na-ubezpieczenie-emerytalne>' . "\n";
+        $xml .= '      <skladki-na-ubezpieczenie-rentowe>' . $fn($totalRentEmp + $totalRentEr) . '</skladki-na-ubezpieczenie-rentowe>' . "\n";
+        $xml .= '      <skladki-na-ubezpieczenie-chorobowe>' . $fn($totalChorEmp) . '</skladki-na-ubezpieczenie-chorobowe>' . "\n";
+        $xml .= '      <skladki-na-ubezpieczenie-wypadkowe>' . $fn($totalWypEr) . '</skladki-na-ubezpieczenie-wypadkowe>' . "\n";
+        $xml .= '      <fundusz-pracy>' . $fn($totalFpEr) . '</fundusz-pracy>' . "\n";
+        $xml .= '      <fgsp>' . $fn($totalFgspEr) . '</fgsp>' . "\n";
         $xml .= '      <suma-skladek-zus>' . $fn($totalZusAll) . '</suma-skladek-zus>' . "\n";
         $xml .= '    </blok-III>' . "\n";
         $xml .= '  </dokument>' . "\n\n";
 
         foreach ($items as $item) {
-            $emp = HrDatabase::getInstance()->fetchOne(
-                "SELECT pesel, first_name, last_name FROM hr_employees WHERE id = ?",
-                [$item['employee_id']]
-            );
+            $emp = HrDatabase::getInstance()->fetchOne("SELECT pesel, first_name, last_name FROM hr_employees WHERE id = ?", [$item['employee_id']]);
             $pesel = '';
             if ($emp) {
-                $emp   = HrEncryptionService::decryptFields($emp, ['pesel']);
+                $emp = HrEncryptionService::decryptFields($emp, ['pesel']);
                 $pesel = $emp['pesel'] ?? '';
             }
 
             $xml .= '  <dokument typ="RCA">' . "\n";
             $xml .= '    <naglowek><nip-platnika>' . $esc($payerNipClean) . '</nip-platnika><okres-rozliczeniowy>' . $periodStr . '</okres-rozliczeniowy></naglowek>' . "\n";
-            $xml .= '    <dane-ubezpieczonego>' . "\n";
-            $xml .= '      <pesel>' . $esc($pesel) . '</pesel>' . "\n";
-            $xml .= '      <imie>' . $esc($item['first_name'] ?? '') . '</imie>' . "\n";
-            $xml .= '      <nazwisko>' . $esc($item['last_name'] ?? '') . '</nazwisko>' . "\n";
-            $xml .= '    </dane-ubezpieczonego>' . "\n";
+            $xml .= '    <dane-ubezpieczonego><pesel>' . $esc($pesel) . '</pesel><imie>' . $esc($item['first_name'] ?? '') . '</imie><nazwisko>' . $esc($item['last_name'] ?? '') . '</nazwisko></dane-ubezpieczonego>' . "\n";
             $xml .= '    <dane-o-skladkach>' . "\n";
             $xml .= '      <wynagrodzenie-brutto>' . $fn($item['gross_salary']) . '</wynagrodzenie-brutto>' . "\n";
             $xml .= '      <skladka-emerytalna-pracownik>' . $fn($item['zus_emerytalne_emp']) . '</skladka-emerytalna-pracownik>' . "\n";
@@ -154,8 +139,6 @@ class HrZusDraService
 
     private static function ensureDir(): void
     {
-        if (!is_dir(self::$storageDir)) {
-            mkdir(self::$storageDir, 0750, true);
-        }
+        if (!is_dir(self::$storageDir)) mkdir(self::$storageDir, 0750, true);
     }
 }
