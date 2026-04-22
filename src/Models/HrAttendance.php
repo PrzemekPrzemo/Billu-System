@@ -10,7 +10,7 @@ class HrAttendance
         'work'     => 'Praca',
         'vacation' => 'Urlop',
         'sick'     => 'L4',
-        'holiday'  => 'Święto',
+        'holiday'  => 'Swięto',
         'remote'   => 'Zdalna',
         'other'    => 'Inne',
     ];
@@ -67,11 +67,12 @@ class HrAttendance
 
     public static function upsert(int $empId, int $clientId, string $date, array $data): void
     {
-        $type        = in_array($data['type'] ?? '', array_keys(self::TYPE_LABELS), true)
-                       ? $data['type'] : 'work';
-        $workMinutes = max(0, min(1440, (int) ($data['work_minutes'] ?? 480)));
-        $overtimeMin = max(0, min(480, (int) ($data['overtime_minutes'] ?? 0)));
-        $notes       = isset($data['notes']) ? trim($data['notes']) : null;
+        $type          = in_array($data['type'] ?? '', array_keys(self::TYPE_LABELS), true)
+                         ? $data['type']
+                         : 'work';
+        $workMinutes   = max(0, min(1440, (int) ($data['work_minutes'] ?? 480)));
+        $overtimeMin   = max(0, min(480, (int) ($data['overtime_minutes'] ?? 0)));
+        $notes         = isset($data['notes']) ? trim($data['notes']) : null;
 
         HrDatabase::getInstance()->query(
             "INSERT INTO hr_attendance
