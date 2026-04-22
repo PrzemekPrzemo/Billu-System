@@ -7,13 +7,16 @@ use App\Models\HrPayrollItem;
 use App\Models\HrPayrollRun;
 use App\Models\HrClientSettings;
 use App\Models\HrEmployee;
+use App\Services\HrEncryptionService;
+use App\Services\HrPayslipPdfService;
+use App\Services\MailService;
 
 class HrPayslipEmailService
 {
     private static array $monthNames = [
-        1=>'stycze\u0144', 2=>'luty', 3=>'marzec', 4=>'kwiecie\u0144',
-        5=>'maj', 6=>'czerwiec', 7=>'lipiec', 8=>'sierpie\u0144',
-        9=>'wrzesie\u0144', 10=>'pa\u017adziernik', 11=>'listopad', 12=>'grudzie\u0144',
+        1=>'styczeń', 2=>'luty', 3=>'marzec', 4=>'kwiecień',
+        5=>'maj', 6=>'czerwiec', 7=>'lipiec', 8=>'sierpień',
+        9=>'wrzesień', 10=>'październik', 11=>'listopad', 12=>'grudzień',
     ];
 
     public static function sendForRun(int $runId): array
@@ -30,12 +33,12 @@ class HrPayslipEmailService
             return ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => []];
         }
 
-        $month   = (int) $run['period_month'];
-        $year    = (int) $run['period_year'];
-        $company = $run['company_name'] ?? '';
+        $month    = (int) $run['period_month'];
+        $year     = (int) $run['period_year'];
+        $company  = $run['company_name'] ?? '';
 
         $subjectTemplate = $settings['payslip_email_subject_template']
-            ?: 'Odcinek p\u0142acowy za {month} {year} \u2014 {company}';
+            ?: 'Odcinek płacowy za {month} {year} — {company}';
         $subject = self::renderTemplate($subjectTemplate, $month, $year, $company);
 
         $items = HrDatabase::getInstance()->fetchAll(
@@ -48,28 +51,21 @@ class HrPayslipEmailService
             [$runId]
         );
 
-        $sent = $skipped = $failed = 0;
-        $errors = [];
+        $sent = 0; $skipped = 0; $failed = 0; $errors = [];
 
         foreach ($items as $item) {
-            if (!(bool) $item['receive_payslip_email']) {
-                $skipped++;
-                continue;
-            }
+            if (!(bool) $item['receive_payslip_email']) { $skipped++; continue; }
 
-            $item    = HrEncryptionService::decryptFields($item, ['email_payslip', 'email']);
+            $item = HrEncryptionService::decryptFields($item, ['email_payslip', 'email']);
             $toEmail = !empty($item['email_payslip']) ? $item['email_payslip'] : $item['email'];
 
-            if (empty($toEmail)) {
-                $skipped++;
-                continue;
-            }
+            if (empty($toEmail)) { $skipped++; continue; }
 
             $employeeId = (int) $item['employee_id'];
             $empName    = $item['first_name'] . ' ' . $item['last_name'];
 
             try {
-                $pdfPath  = HrPayslipPdfService::generate($runId, $employeeId);
+                $pdfPath = HrPayslipPdfService::generate($runId, $employeeId);
                 $htmlBody = self::buildEmailBody($empName, $month, $year, $company);
 
                 $mailer = MailService::createMailerForClient($clientId);
@@ -86,9 +82,8 @@ class HrPayslipEmailService
                 $mailer->send();
                 self::log($runId, $employeeId, $clientId, $toEmail, 'sent');
                 $sent++;
-
             } catch (\Throwable $e) {
-                $msg = "B\u0142\u0105d wysy\u0142ki do {$empName} ({$toEmail}): " . $e->getMessage();
+                $msg = "Błąd wysyłki do {$empName} ({$toEmail}): " . $e->getMessage();
                 $errors[] = $msg;
                 error_log("[HrPayslipEmail] {$msg}");
                 self::log($runId, $employeeId, $clientId, $toEmail, 'failed', $e->getMessage());
@@ -132,23 +127,17 @@ class HrPayslipEmailService
         $esc = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
         return "
             <p>Szanowna/y <strong>{$esc($empName)}</strong>,</p>
-            <p>W za\u0142\u0105czniku przesy\u0142amy odcinek p\u0142acowy za <strong>{$esc($monthName)} {$year}</strong>.</p>
+            <p>W załączniku przesyłamy odcinek płacowy za <strong>{$esc($monthName)} {$year}</strong>.</p>
             <p>Pracodawca: <em>{$esc($company)}</em></p>
             <p style='font-size:12px;color:#666;margin-top:24px;'>
-                Wiadomo\u015b\u0107 wygenerowana automatycznie przez system BiLLU HR.<br>
-                Prosimy nie odpowiada\u0107 na t\u0119 wiadomo\u015b\u0107.
+                Wiadomość wygenerowana automatycznie przez system Billu HR.<br>
+                Prosimy nie odpowiadać na tę wiadomość.
             </p>
         ";
     }
 
-    private static function log(
-        int    $runId,
-        int    $employeeId,
-        int    $clientId,
-        string $recipientEmail,
-        string $status,
-        string $errorMessage = null
-    ): void {
+    private static function log(int $runId, int $employeeId, int $clientId, string $recipientEmail, string $status, string $errorMessage = null): void
+    {
         try {
             $row = [
                 'payroll_run_id'  => $runId,
