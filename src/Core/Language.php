@@ -26,6 +26,10 @@ class Language
         if (file_exists($file)) {
             self::$translations = require $file;
         }
+        $hrFile = __DIR__ . '/../../lang/' . self::$locale . '_hr.php';
+        if (file_exists($hrFile)) {
+            self::$translations = array_merge(self::$translations, require $hrFile);
+        }
     }
 
     public static function get(string $key, array $params = []): string
@@ -40,9 +44,6 @@ class Language
     }
 }
 
-/**
- * Helper function for translations
- */
 function __($key, array $params = []): string
 {
     return Language::get($key, $params);
