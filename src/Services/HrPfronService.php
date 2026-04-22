@@ -39,8 +39,8 @@ class HrPfronService
         $levyAmount = 0;
 
         if ($liable) {
-            $required   = $totalEmployees * self::DISABILITY_RATIO_THRESHOLD;
-            $missing    = max(0, $required - $disabledEmployees);
+            $required  = $totalEmployees * self::DISABILITY_RATIO_THRESHOLD;
+            $missing   = max(0, $required - $disabledEmployees);
             $levyAmount = round(self::LEVY_COEFFICIENT * $avgSalary * $missing, 2);
         }
 

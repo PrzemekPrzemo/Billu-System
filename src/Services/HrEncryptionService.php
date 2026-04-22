@@ -60,8 +60,8 @@ class HrEncryptionService
             return null;
         }
 
-        $nonce     = substr($decoded, 0, $nonceLen);
-        $encrypted = substr($decoded, $nonceLen);
+        $nonce      = substr($decoded, 0, $nonceLen);
+        $encrypted  = substr($decoded, $nonceLen);
 
         $plaintext = sodium_crypto_secretbox_open($encrypted, $nonce, self::$encKey);
 
@@ -83,7 +83,7 @@ class HrEncryptionService
     {
         foreach ($fields as $field) {
             if (array_key_exists($field, $data)) {
-                $data[$field] = self::encrypt((string)($data[$field] ?? ''));
+                $data[$field] = self::encrypt((string)($data[$field] ?? '')) ;
                 if ($data[$field] === '') $data[$field] = null;
             }
         }

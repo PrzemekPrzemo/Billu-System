@@ -9,15 +9,8 @@ use App\Models\HrLeaveType;
 class HrLeaveService
 {
     private static array $fixedHolidays = [
-        [1,  1],
-        [6,  1],
-        [1,  5],
-        [3,  5],
-        [15, 8],
-        [1,  11],
-        [11, 11],
-        [25, 12],
-        [26, 12],
+        [1,  1],  [6,  1],  [1,  5],  [3,  5],  [15, 8],
+        [1,  11], [11, 11], [25, 12], [26, 12],
     ];
 
     public static function getPolishHolidays(int $year): array
@@ -40,7 +33,6 @@ class HrLeaveService
         $easter = mktime(0, 0, 0, $month, $day, $year);
 
         $holidays = [];
-
         foreach (self::$fixedHolidays as [$d2, $m2]) {
             $holidays[] = date('Y-m-d', mktime(0, 0, 0, $m2, $d2, $year));
         }
@@ -81,7 +73,7 @@ class HrLeaveService
 
     public static function rolloverBalances(int $newYear): int
     {
-        $db       = HrDatabase::getInstance();
+        $db      = HrDatabase::getInstance();
         $prevYear = $newYear - 1;
 
         $employees = $db->fetchAll(
