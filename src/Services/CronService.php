@@ -13,6 +13,10 @@ use App\Services\ScheduledExportService;
 use App\Models\KsefConfig;
 use App\Models\IssuedInvoice;
 use App\Models\KsefOperationLog;
+use App\Models\HrDocument;
+use App\Models\Notification;
+use App\Services\HrLeaveService;
+use App\Services\HrTaxCalendarService;
 
 class CronService
 {
@@ -509,5 +513,73 @@ class CronService
         $result = DuplicateDetectionService::batchScanAll();
         \App\Models\DuplicateCandidate::deleteOld(365);
         return $result;
+    }
+
+    public static function processHrTaxDeadlines(): array
+    {
+        $month     = (int) date('n');
+        $year      = (int) date('Y');
+        $prevMonth = $month === 1 ? 12 : $month - 1;
+        $prevYear  = $month === 1 ? $year - 1 : $year;
+
+        $count = HrTaxCalendarService::generateDeadlinesForMonth($prevYear, $prevMonth);
+
+        if ($month === 1) {
+            $count += HrTaxCalendarService::generateAnnualDeadlines($prevYear);
+        }
+
+        AuditLog::log('system', 0, 'hr_tax_deadlines', json_encode([
+            'period'      => "{$prevYear}-{$prevMonth}",
+            'count'       => $count,
+            'annual_pass' => $month === 1,
+        ]));
+
+        return ['deadlines_added' => $count];
+    }
+
+    public static function rolloverLeaveBalances(): array
+    {
+        $today = date('m-d');
+        if ($today !== '12-31' && $today !== '01-01') {
+            return ['skipped' => true, 'reason' => 'Not year-end or year-start'];
+        }
+
+        $newYear = (int) date('Y') + ($today === '12-31' ? 1 : 0);
+        $count   = HrLeaveService::rolloverBalances($newYear);
+
+        AuditLog::log('system', 0, 'hr_leave_rollover', json_encode([
+            'new_year'        => $newYear,
+            'employees_count' => $count,
+        ]));
+
+        return ['rolled_over' => $count, 'new_year' => $newYear];
+    }
+
+    public static function processHrDocumentExpiryAlerts(): array
+    {
+        $alertsSent = 0;
+
+        foreach ([30, 14, 7] as $days) {
+            $docs = HrDocument::findExpiringSoon($days);
+
+            foreach ($docs as $doc) {
+                $employeeId = (int) $doc['employee_id'];
+                $empName    = $doc['employee_name'] ?? "pracownik #{$employeeId}";
+                $docName    = $doc['original_name'] ?? 'Dokument';
+                $expiry     = $doc['expiry_date'] ?? '';
+                $clientId   = (int) $doc['client_id'];
+
+                $title   = "Dokument wygasa za {$days}d: {$docName}";
+                $message = "Dokument pracownika {$empName} ({$doc['category']}) wygasa {$expiry}. Prosimy o przedłużenie.";
+                $link    = "/office/hr/{$clientId}/employees/{$employeeId}/documents";
+
+                Notification::create('office', 0, $title, $message, 'warning', $link);
+
+                HrDocument::markAlertSent($doc['id'], $days);
+                $alertsSent++;
+            }
+        }
+
+        return ['alerts_sent' => $alertsSent];
     }
 }
