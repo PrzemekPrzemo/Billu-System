@@ -37,7 +37,7 @@ class HrOnboardingTask
                 'Przygotowanie finalnej listy płac',
             ],
             'other' => [
-                'Zwrót sprzętu firmowego / dostępów',
+                'Zwrot sprzętu firmowego / dostępów',
                 'Wyrejestrowanie z ZUS (formularz ZWUA)',
             ],
         ],
@@ -102,10 +102,10 @@ class HrOnboardingTask
     public static function markDone(int $id, string $actorType, int $actorId): void
     {
         HrDatabase::getInstance()->update('hr_onboarding_tasks', [
-            'is_done'      => 1,
-            'done_at'      => date('Y-m-d H:i:s'),
-            'done_by_type' => $actorType,
-            'done_by_id'   => $actorId,
+            'is_done'     => 1,
+            'done_at'     => date('Y-m-d H:i:s'),
+            'done_by_type'=> $actorType,
+            'done_by_id'  => $actorId,
         ], 'id = ?', [$id]);
     }
 
