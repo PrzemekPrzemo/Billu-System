@@ -24,21 +24,18 @@ class HrAttendancePdfService
 
         $db        = HrDatabase::getInstance();
         $employees = $db->fetchAll(
-            "SELECT id, first_name, last_name
-             FROM hr_employees
-             WHERE client_id = ? AND is_active = 1
-             ORDER BY last_name, first_name",
+            "SELECT id, first_name, last_name FROM hr_employees WHERE client_id = ? AND is_active = 1 ORDER BY last_name, first_name",
             [$clientId]
         );
 
-        $companyName     = self::getCompanyName($clientId);
-        $daysInMonth     = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
-        $holidays        = HrAttendanceService::getPolishHolidays($year);
-        $holidayDays     = self::holidayDaySet($holidays, $month, $year);
+        $companyName = self::getCompanyName($clientId);
+        $daysInMonth = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+        $holidays    = HrAttendanceService::getPolishHolidays($year);
+        $holidayDays = self::holidayDaySet($holidays, $month, $year);
         $attendanceByEmp = HrAttendance::findByClientMonth($clientId, $month, $year);
 
         $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8');
-        $pdf->SetCreator('BiLLU HR');
+        $pdf->SetCreator('Billu HR');
         $pdf->SetAuthor($companyName);
         $pdf->SetTitle(sprintf('Ewidencja czasu pracy %02d/%04d', $month, $year));
         $pdf->setPrintHeader(false);
@@ -49,14 +46,9 @@ class HrAttendancePdfService
         $pdf->AddPage();
 
         $pdf->SetFont('dejavusans', 'B', 10);
-        $pdf->Cell(0, 6, 'Ewidencja czasu pracy \u2014 ' . $companyName, 0, 1, 'C');
+        $pdf->Cell(0, 6, 'Ewidencja czasu pracy — ' . $companyName, 0, 1, 'C');
         $pdf->SetFont('dejavusans', '', 9);
-
-        $monthNames = [
-            1=>'Stycze\u0144',2=>'Luty',3=>'Marzec',4=>'Kwiecie\u0144',5=>'Maj',
-            6=>'Czerwiec',7=>'Lipiec',8=>'Sierpie\u0144',9=>'Wrzesie\u0144',
-            10=>'Pa\u017adziernik',11=>'Listopad',12=>'Grudzie\u0144',
-        ];
+        $monthNames = [1=>'Styczeń',2=>'Luty',3=>'Marzec',4=>'Kwiecień',5=>'Maj',6=>'Czerwiec',7=>'Lipiec',8=>'Sierpień',9=>'Wrzesień',10=>'Październik',11=>'Listopad',12=>'Grudzień'];
         $pdf->Cell(0, 5, $monthNames[$month] . ' ' . $year, 0, 1, 'C');
         $pdf->Ln(2);
 
@@ -78,29 +70,28 @@ class HrAttendancePdfService
             }
             $pdf->Cell($dayColW, 6, (string)$d, 1, 0, 'C', true);
         }
-        $pdf->SetFillColor(240, 240, 240);
         for ($i = 0; $i < $emptyDays; $i++) {
+            $pdf->SetFillColor(240, 240, 240);
             $pdf->Cell($dayColW, 6, '', 1, 0, 'C', true);
         }
         $pdf->SetFillColor(220, 220, 220);
         $pdf->Cell($sumColW, 6, 'Godz.', 1, 0, 'C', true);
         $pdf->Cell($otColW,  6, 'Nadg.', 1, 1, 'C', true);
 
-        $dowShort = ['', 'Pn','Wt','\u015ar','Cz','Pt','Sb','Nd'];
+        $dowShort = ['', 'Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
         $pdf->SetFont('dejavusans', '', 5.5);
         $pdf->Cell($nameColW, 4, '', 1, 0, 'C');
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dow = (int) date('N', mktime(0, 0, 0, $month, $d, $year));
             if ($dow >= 6 || isset($holidayDays[$d])) {
                 $pdf->SetFillColor(189, 215, 238);
-                $pdf->Cell($dayColW, 4, $dowShort[$dow], 1, 0, 'C', true);
             } else {
                 $pdf->SetFillColor(255, 255, 255);
-                $pdf->Cell($dayColW, 4, $dowShort[$dow], 1, 0, 'C', true);
             }
+            $pdf->Cell($dayColW, 4, $dowShort[$dow], 1, 0, 'C', true);
         }
-        $pdf->SetFillColor(240, 240, 240);
         for ($i = 0; $i < $emptyDays; $i++) {
+            $pdf->SetFillColor(240, 240, 240);
             $pdf->Cell($dayColW, 4, '', 1, 0, 'C', true);
         }
         $pdf->SetFillColor(255, 255, 255);
@@ -121,7 +112,7 @@ class HrAttendancePdfService
             $pdf->Cell($nameColW, $rowH, $fullName, 1, 0, 'L');
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
-                $dow       = (int) date('N', mktime(0, 0, 0, $month, $d, $year));
+                $dow = (int) date('N', mktime(0, 0, 0, $month, $d, $year));
                 $isWeekend = $dow >= 6;
                 $isHoliday = isset($holidayDays[$d]);
 
@@ -136,7 +127,7 @@ class HrAttendancePdfService
                     $pdf->Cell($dayColW, $rowH, $code, 1, 0, 'C', true);
                 } elseif ($isWeekend || $isHoliday) {
                     $pdf->SetFillColor(235, 235, 235);
-                    $pdf->Cell($dayColW, $rowH, '\u2014', 1, 0, 'C', true);
+                    $pdf->Cell($dayColW, $rowH, '—', 1, 0, 'C', true);
                 } else {
                     $pdf->SetFillColor(255, 255, 255);
                     $pdf->Cell($dayColW, $rowH, '', 1, 0, 'C');
@@ -157,18 +148,14 @@ class HrAttendancePdfService
         $pdf->SetFont('dejavusans', 'B', 7);
         $pdf->Cell(0, 4, 'Legenda:', 0, 1);
         $pdf->SetFont('dejavusans', '', 6.5);
-        $legendItems = ['P'=>'Praca','U'=>'Urlop','L'=>'L4 (chorobowe)','\u015a'=>'\u015awi\u0119to','Z'=>'Praca zdalna','I'=>'Inne'];
-        $legendParts = [];
-        foreach ($legendItems as $code => $label) {
-            $legendParts[] = "{$code} = {$label}";
-        }
-        $pdf->Cell(0, 4, implode('   ', $legendParts), 0, 1);
+        $legendItems = ['P'=>'Praca','U'=>'Urlop','L'=>'L4 (chorobowe)','Ś'=>'Święto','Z'=>'Praca zdalna','I'=>'Inne'];
+        $pdf->Cell(0, 4, implode('   ', array_map(fn($c,$l) => "{$c} = {$l}", array_keys($legendItems), $legendItems)), 0, 1);
 
         $pdf->Ln(6);
         $sigW = 80;
         $pdf->Cell($sigW, 4, 'Data wydruku: ' . date('d.m.Y'), 0, 0, 'L');
         $pdf->Cell($sigW, 4, '', 0, 0);
-        $pdf->Cell($sigW, 4, 'Podpis pracodawcy / osoby upowa\u017cnionej', 0, 1, 'C');
+        $pdf->Cell($sigW, 4, 'Podpis pracodawcy / osoby upoważnionej', 0, 1, 'C');
         $pdf->Ln(8);
         $pdf->Cell($sigW, 4, '', 0, 0);
         $pdf->Cell($sigW, 4, '', 0, 0);
@@ -184,18 +171,13 @@ class HrAttendancePdfService
     private static function ensureDir(int $clientId): void
     {
         $dir = self::$storageDir . '/' . $clientId;
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
     }
 
     private static function getCompanyName(int $clientId): string
     {
         $mainDb = \App\Core\HrDatabase::mainDbName();
-        $row = HrDatabase::getInstance()->fetchOne(
-            "SELECT company_name FROM `{$mainDb}`.clients WHERE id = ?",
-            [$clientId]
-        );
+        $row = HrDatabase::getInstance()->fetchOne("SELECT company_name FROM `{$mainDb}`.clients WHERE id = ?", [$clientId]);
         return $row['company_name'] ?? 'Pracodawca';
     }
 
@@ -204,9 +186,7 @@ class HrAttendancePdfService
         $set = [];
         foreach ($holidays as $date) {
             [$hy, $hm, $hd] = explode('-', $date);
-            if ((int)$hm === $month && (int)$hy === $year) {
-                $set[(int)$hd] = true;
-            }
+            if ((int)$hm === $month && (int)$hy === $year) $set[(int)$hd] = true;
         }
         return $set;
     }
