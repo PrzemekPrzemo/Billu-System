@@ -24,9 +24,9 @@ class HrBatchService
 
         if (empty($clients)) return [];
 
-        $clientIds    = array_column($clients, 'id');
+        $clientIds = array_column($clients, 'id');
         $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
-        $hrDbI        = HrDatabase::getInstance();
+        $hrDbI = HrDatabase::getInstance();
 
         $empCounts = $hrDbI->fetchAll(
             "SELECT client_id, COUNT(*) AS cnt
@@ -65,12 +65,12 @@ class HrBatchService
 
         foreach ($clients as &$c) {
             $cid = $c['id'];
-            $c['employee_count']     = (int) ($empMap[$cid] ?? 0);
-            $c['pending_leaves']     = (int) ($pendingMap[$cid] ?? 0);
+            $c['employee_count'] = (int) ($empMap[$cid] ?? 0);
+            $c['pending_leaves'] = (int) ($pendingMap[$cid] ?? 0);
             $pr = $payrollMap[$cid] ?? null;
-            $c['payroll_status']     = $pr['status'] ?? null;
-            $c['total_employer_cost']= $pr['total_employer_cost'] ?? null;
-            $c['zus_status']         = $zusMap[$cid] ?? null;
+            $c['payroll_status'] = $pr['status'] ?? null;
+            $c['total_employer_cost'] = $pr['total_employer_cost'] ?? null;
+            $c['zus_status'] = $zusMap[$cid] ?? null;
         }
         unset($c);
 
@@ -83,9 +83,22 @@ class HrBatchService
 
         if (empty($overview)) return [];
 
-        $today      = time();
-        $zusDl      = mktime(23,59,59, $month + 1, 15, $year);
-        $pitDl      = mktime(23,59,59, $month + 1, 20, $year);
+        $pitMap = [];
+        foreach ($overview as $c) {
+            if ($c['payroll_status'] === 'locked') {
+                $pitMap[$c['id']] = 'locked';
+            } elseif ($c['payroll_status'] === 'approved') {
+                $pitMap[$c['id']] = 'approved';
+            } elseif ($c['payroll_status'] === 'calculated') {
+                $pitMap[$c['id']] = 'calculated';
+            } else {
+                $pitMap[$c['id']] = null;
+            }
+        }
+
+        $today = time();
+        $zusDl  = mktime(23,59,59, $month + 1, 15, $year);
+        $pitDl  = mktime(23,59,59, $month + 1, 20, $year);
         $zusOverdue = $today > $zusDl;
         $pitOverdue = $today > $pitDl;
 
@@ -98,7 +111,7 @@ class HrBatchService
                 $c['zus_compliance'] = ($zusOverdue && $c['employee_count'] > 0) ? 'red' : 'gray';
             }
 
-            $pitSt = $c['payroll_status'] ?? null;
+            $pitSt = $pitMap[$c['id']] ?? null;
             if ($pitSt === 'locked') {
                 $c['pit_compliance'] = 'green';
             } elseif ($pitSt === 'approved') {
