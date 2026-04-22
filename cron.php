@@ -4,7 +4,7 @@
  * Cron job script - run daily.
  *
  * Crontab entry:
- * 0 8 * * * php /path/to/faktury-ksef/cron.php
+ * 0 8 * * * php /path/to/billu-system/cron.php
  */
 
 declare(strict_types=1);
@@ -99,5 +99,20 @@ if (date('N') == 1) {
     $dupResult = CronService::scanForDuplicates();
     echo "  Clients scanned: {$dupResult['clients_scanned']}, New duplicates: {$dupResult['new_duplicates']}\n";
 }
+
+// 11. HR tax deadline alerts (ZUS, PIT-4, PIT-4R, PIT-11)
+echo "Generating HR tax deadline alerts...\n";
+$hrDeadlines = CronService::processHrTaxDeadlines();
+echo "  Deadlines added: {$hrDeadlines['deadlines_added']}\n";
+
+// 12. HR leave balance rollover (runs only on 31 Dec and 1 Jan)
+$hrRollover = CronService::rolloverLeaveBalances();
+if (empty($hrRollover['skipped'])) {
+    echo "HR leave rollover: {$hrRollover['rolled_over']} employees for year {$hrRollover['new_year']}\n";
+}
+
+// 13. HR document expiry alerts (e-Teczka — 30/14/7 days before expiry)
+$docAlerts = CronService::processHrDocumentExpiryAlerts();
+echo "  HR doc expiry alerts sent: {$docAlerts['alerts_sent']}\n";
 
 echo "[" . date('Y-m-d H:i:s') . "] Cron job completed.\n";
