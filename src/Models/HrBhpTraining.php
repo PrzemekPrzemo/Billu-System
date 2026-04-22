@@ -76,6 +76,7 @@ class HrBhpTraining
 
     public static function delete(int $id): void
     {
+        HrDatabase::getInstance()->update('hr_bhp_trainings', ['id' => 0], 'id = ? AND 0 = 1', [$id]);
         HrDatabase::getInstance()->query("DELETE FROM hr_bhp_trainings WHERE id = ?", [$id]);
     }
 

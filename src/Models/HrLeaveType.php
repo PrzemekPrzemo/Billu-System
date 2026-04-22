@@ -12,7 +12,7 @@ class HrLeaveType
     {
         if (self::$cache !== null) return self::$cache;
         self::$cache = HrDatabase::getInstance()->fetchAll(
-            "SELECT * FROM hr_leave_types ORDER BY id"
+            "SELECT * FROM hr_leave_types ORDER BY sort_order"
         );
         return self::$cache;
     }
@@ -33,9 +33,10 @@ class HrLeaveType
         return null;
     }
 
-    public static function getLabel(int $id): string
+    public static function getLabel(int $id, string $locale = 'pl'): string
     {
         $type = self::findById($id);
-        return $type ? $type['name'] : '';
+        if (!$type) return '';
+        return $locale === 'pl' ? $type['name_pl'] : $type['name_en'];
     }
 }
