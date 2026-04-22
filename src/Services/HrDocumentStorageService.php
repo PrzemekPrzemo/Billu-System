@@ -30,13 +30,13 @@ class HrDocumentStorageService
 
         $plaintext = file_get_contents($tmpPath);
         if ($plaintext === false) {
-            throw new \RuntimeException('Nie mo\u017cna odczyta\u0107 pliku tymczasowego');
+            throw new \RuntimeException('Nie można odczytać pliku tymczasowego');
         }
 
         $iv         = random_bytes(16);
         $ciphertext = openssl_encrypt($plaintext, 'AES-256-CBC', self::getKey(), OPENSSL_RAW_DATA, $iv);
         if ($ciphertext === false) {
-            throw new \RuntimeException('Szyfrowanie pliku nie powiod\u0142o si\u0119');
+            throw new \RuntimeException('Szyfrowanie pliku nie powiodło się');
         }
 
         file_put_contents($fullPath, $iv . $ciphertext);
@@ -61,7 +61,7 @@ class HrDocumentStorageService
 
         $plaintext = openssl_decrypt($ciphertext, 'AES-256-CBC', self::getKey(), OPENSSL_RAW_DATA, $iv);
         if ($plaintext === false) {
-            throw new \RuntimeException('Odszyfrowanie pliku nie powiod\u0142o si\u0119 \u2014 plik mo\u017ce by\u0107 uszkodzony lub klucz nieprawid\u0142owy');
+            throw new \RuntimeException('Odszyfrowanie pliku nie powiodło się — plik może być uszkodzony lub klucz nieprawidłowy');
         }
 
         return $plaintext;
