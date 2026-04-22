@@ -67,7 +67,7 @@ class HrZusDeclaration
         return match ($status) {
             'pending'   => 'Nie wygenerowana',
             'generated' => 'Wygenerowana',
-            'sent'      => 'Wys\u0142ana',
+            'sent'      => 'Wysłana',
             default     => $status,
         };
     }

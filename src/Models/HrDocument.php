@@ -22,7 +22,7 @@ class HrDocument
     public static function findByEmployee(int $employeeId): array
     {
         $rows = HrDatabase::getInstance()->fetchAll(
-            "SELECT * FROM hr_documents WHERE employee_id = ? ORDER BY created_at DESC",
+            "SELECT * FROM hr_documents WHERE employee_id = ? ORDER BY uploaded_at DESC",
             [$employeeId]
         );
         return HrEncryptionService::decryptRows($rows, ['original_name']);

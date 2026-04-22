@@ -21,7 +21,8 @@ class HrPayrollBudget
 
     public static function upsertMonth(int $clientId, int $year, int $month, float $plannedGross, float $plannedCost, ?string $notes = null): void
     {
-        HrDatabase::getInstance()->query(
+        $db = HrDatabase::getInstance();
+        $db->query(
             "INSERT INTO hr_payroll_budget (client_id, budget_year, period_month, planned_gross, planned_cost, notes)
              VALUES (?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
@@ -38,7 +39,9 @@ class HrPayrollBudget
             if (!isset($monthData[$m])) continue;
             $row = $monthData[$m];
             self::upsertMonth(
-                $clientId, $year, $m,
+                $clientId,
+                $year,
+                $m,
                 (float) ($row['planned_gross'] ?? 0),
                 (float) ($row['planned_cost']  ?? 0),
                 $row['notes'] ?? null
