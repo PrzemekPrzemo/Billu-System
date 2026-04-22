@@ -58,13 +58,13 @@ class HrPpkEnrollment
         $emplRate      = (float)($data['employer_rate'] ?? 1.50);
 
         $db->insert('hr_ppk_enrollments', [
-            'employee_id'    => $empId,
-            'client_id'      => $clientId,
-            'action'         => 'enroll',
-            'effective_date' => $effectiveDate,
-            'institution'    => $institution,
-            'employee_rate'  => $empRate,
-            'employer_rate'  => $emplRate,
+            'employee_id'   => $empId,
+            'client_id'     => $clientId,
+            'action'        => 'enroll',
+            'effective_date'=> $effectiveDate,
+            'institution'   => $institution,
+            'employee_rate' => $empRate,
+            'employer_rate' => $emplRate,
         ]);
 
         $db->update('hr_employees', [

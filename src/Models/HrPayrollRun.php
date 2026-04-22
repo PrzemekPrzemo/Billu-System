@@ -55,12 +55,8 @@ class HrPayrollRun
         return self::findById($id);
     }
 
-    public static function updateStatus(
-        int $id,
-        string $status,
-        ?string $actorType = null,
-        ?int $actorId = null
-    ): void {
+    public static function updateStatus(int $id, string $status, ?string $actorType = null, ?int $actorId = null): void
+    {
         $data = ['status' => $status];
 
         if ($status === 'calculated' || $status === 'approved') {
