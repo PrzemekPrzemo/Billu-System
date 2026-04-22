@@ -10,13 +10,8 @@ class HrPayrollCalculationService
     public const RATE_EMERYTALNE_ER = 0.0976;
     public const RATE_RENTOWE_ER    = 0.0650;
 
-    public static function calculate(
-        array $employee,
-        array $contract,
-        array $settings,
-        array $overrides,
-        array $ytd
-    ): array {
+    public static function calculate(array $employee, array $contract, array $settings, array $overrides, array $ytd): array
+    {
         $contractType = $contract['contract_type'] ?? 'uop';
         $fraction     = (float) ($contract['work_time_fraction'] ?? 1.0);
 
@@ -26,8 +21,7 @@ class HrPayrollCalculationService
         $otherAdditions   = (float) ($overrides['other_additions']   ?? 0);
         $sickPayReduction = (float) ($overrides['sick_pay_reduction'] ?? 0);
 
-        $grossSalary = round(($baseSalary * $fraction) + $overtimePay + $bonus + $otherAdditions - $sickPayReduction, 2);
-        $grossSalary = max(0.0, $grossSalary);
+        $grossSalary = max(0.0, round(($baseSalary * $fraction) + $overtimePay + $bonus + $otherAdditions - $sickPayReduction, 2));
 
         $zusLimit     = (float) ($settings['zus_annual_basis_limit'] ?? 260190.00);
         $fpRate       = (float) ($settings['fp_rate']                ?? 0.0245);
@@ -62,40 +56,37 @@ class HrPayrollCalculationService
         if ($contractType === 'uz') {
             $hasOtherEmployment = (bool) ($contract['has_other_employment'] ?? false);
             if ($hasOtherEmployment) {
-                $zusRetEmp = false; $zusRetEr = false;
-                $zusRenEmp = false; $zusRenEr = false;
-                $zusChor = false; $zusWyp = false;
-                $zusFp = false; $zusFgsp = false;
+                $zusRetEmp = false; $zusRetEr = false; $zusRenEmp = false; $zusRenEr = false;
+                $zusChor = false; $zusWyp = false; $zusFp = false; $zusFgsp = false;
             }
         }
 
         $zusBaseForCalc = $grossSalary;
         if ($ytdZusBase >= $zusLimit) {
-            $zusRetEmp = false; $zusRetEr = false;
-            $zusRenEmp = false; $zusRenEr = false;
+            $zusRetEmp = false; $zusRetEr = false; $zusRenEmp = false; $zusRenEr = false;
         } elseif ($ytdZusBase + $grossSalary > $zusLimit) {
             $zusBaseForCalc = $zusLimit - $ytdZusBase;
         }
 
-        $zusEmerytalneEmp = $zusRetEmp ? round($zusBaseForCalc * self::RATE_EMERYTALNE_EMP, 2) : 0.0;
-        $zusRentowneEmp   = $zusRenEmp ? round($zusBaseForCalc * self::RATE_RENTOWE_EMP, 2)    : 0.0;
-        $zusChoroboweEmp  = $zusChor   ? round($grossSalary    * self::RATE_CHOROBOWE_EMP, 2)  : 0.0;
-        $zusTotalEmployee = $zusEmerytalneEmp + $zusRentowneEmp + $zusChoroboweEmp;
+        $zusEmerytalneEmp  = $zusRetEmp ? round($zusBaseForCalc * self::RATE_EMERYTALNE_EMP, 2) : 0.0;
+        $zusRentowneEmp    = $zusRenEmp ? round($zusBaseForCalc * self::RATE_RENTOWE_EMP, 2)    : 0.0;
+        $zusChoroboweEmp   = $zusChor   ? round($grossSalary    * self::RATE_CHOROBOWE_EMP, 2)  : 0.0;
+        $zusTotalEmployee  = $zusEmerytalneEmp + $zusRentowneEmp + $zusChoroboweEmp;
 
-        $taxBase    = max(0, (int) round($grossSalary - $zusTotalEmployee - $kupAmount));
-        $pitRate    = ($ytdGross >= $pitThreshold) ? 0.32 : 0.12;
-        $pitCalculated = round($taxBase * $pitRate, 2);
-        $taxRelief  = $pit2Submitted ? $monthlyRelief : 0.0;
-        $pitAdvance = max(0, (int) round($pitCalculated - $taxRelief));
+        $taxBase = max(0, (int) round($grossSalary - $zusTotalEmployee - $kupAmount));
+        $pitRate      = ($ytdGross >= $pitThreshold) ? 0.32 : 0.12;
+        $pitCalculated= round($taxBase * $pitRate, 2);
+        $taxRelief    = $pit2Submitted ? $monthlyRelief : 0.0;
+        $pitAdvance   = max(0, (int) round($pitCalculated - $taxRelief));
 
-        $ppkEmployee = $ppkEnrolled ? round($grossSalary * $ppkEmpRate, 2) : 0.0;
-        $ppkEmployer = $ppkEnrolled ? round($grossSalary * $ppkErRate,  2) : 0.0;
+        $ppkEmployee  = $ppkEnrolled ? round($grossSalary * $ppkEmpRate, 2) : 0.0;
+        $ppkEmployer  = $ppkEnrolled ? round($grossSalary * $ppkErRate,  2) : 0.0;
 
         $netSalary = round($grossSalary - $zusTotalEmployee - $pitAdvance - $ppkEmployee, 2);
 
-        $zusEmerytalneEr = $zusRetEr ? round($zusBaseForCalc * self::RATE_EMERYTALNE_ER, 2) : 0.0;
-        $zusRentowneEr   = $zusRenEr ? round($zusBaseForCalc * self::RATE_RENTOWE_ER, 2)    : 0.0;
-        $zusWypadkoweEr  = $zusWyp   ? round($grossSalary    * $wypadkoweRate, 2)            : 0.0;
+        $zusEmerytalneEr = $zusRetEr  ? round($zusBaseForCalc * self::RATE_EMERYTALNE_ER, 2) : 0.0;
+        $zusRentowneEr   = $zusRenEr  ? round($zusBaseForCalc * self::RATE_RENTOWE_ER, 2)    : 0.0;
+        $zusWypadkoweEr  = $zusWyp    ? round($grossSalary    * $wypadkoweRate, 2)            : 0.0;
         $aboveMinWage    = ($grossSalary >= $minWage);
         $zusFpEr         = ($zusFp   && $aboveMinWage) ? round($grossSalary * $fpRate,   2) : 0.0;
         $zusFgspEr       = ($zusFgsp && $aboveMinWage) ? round($grossSalary * $fgspRate, 2) : 0.0;
@@ -104,111 +95,59 @@ class HrPayrollCalculationService
         $employerTotalCost = round($grossSalary + $zusTotalEmployer + $ppkEmployer, 2);
 
         $calcParams = [
-            'contract_type'     => $contractType,
-            'base_salary'       => $baseSalary,
-            'fraction'          => $fraction,
-            'rate_emerytalne'   => self::RATE_EMERYTALNE_EMP,
-            'rate_rentowe_emp'  => self::RATE_RENTOWE_EMP,
-            'rate_chorobowe'    => self::RATE_CHOROBOWE_EMP,
-            'rate_rentowe_er'   => self::RATE_RENTOWE_ER,
-            'wypadkowe_rate'    => $wypadkoweRate,
-            'fp_rate'           => $fpRate,
-            'fgsp_rate'         => $fgspRate,
-            'kup_amount'        => $kupAmount,
-            'pit_rate'          => $pitRate,
-            'tax_relief_monthly'=> $taxRelief,
-            'pit2_submitted'    => $pit2Submitted,
-            'ppk_enrolled'      => $ppkEnrolled,
-            'ppk_emp_rate'      => $ppkEmpRate,
-            'ppk_er_rate'       => $ppkErRate,
-            'zus_limit'         => $zusLimit,
-            'ytd_gross_before'  => $ytdGross,
-            'ytd_zus_before'    => $ytdZusBase,
+            'contract_type' => $contractType, 'base_salary' => $baseSalary, 'fraction' => $fraction,
+            'rate_emerytalne' => self::RATE_EMERYTALNE_EMP, 'rate_rentowe_emp' => self::RATE_RENTOWE_EMP,
+            'rate_chorobowe' => self::RATE_CHOROBOWE_EMP, 'rate_rentowe_er' => self::RATE_RENTOWE_ER,
+            'wypadkowe_rate' => $wypadkoweRate, 'fp_rate' => $fpRate, 'fgsp_rate' => $fgspRate,
+            'kup_amount' => $kupAmount, 'pit_rate' => $pitRate, 'tax_relief_monthly' => $taxRelief,
+            'pit2_submitted' => $pit2Submitted, 'ppk_enrolled' => $ppkEnrolled,
+            'ppk_emp_rate' => $ppkEmpRate, 'ppk_er_rate' => $ppkErRate,
+            'zus_limit' => $zusLimit, 'ytd_gross_before' => $ytdGross, 'ytd_zus_before' => $ytdZusBase,
         ];
 
         return [
-            'base_salary'          => $baseSalary * $fraction,
-            'overtime_pay'         => $overtimePay,
-            'bonus'                => $bonus,
-            'other_additions'      => $otherAdditions,
-            'sick_pay_reduction'   => $sickPayReduction,
-            'gross_salary'         => $grossSalary,
-            'zus_emerytalne_emp'   => $zusEmerytalneEmp,
-            'zus_rentowe_emp'      => $zusRentowneEmp,
-            'zus_chorobowe_emp'    => $zusChoroboweEmp,
-            'zus_total_employee'   => $zusTotalEmployee,
-            'kup_amount'           => $kupAmount,
-            'tax_base'             => $taxBase,
-            'pit_rate'             => (int) ($pitRate * 100),
-            'pit_calculated'       => $pitCalculated,
-            'tax_relief_monthly'   => $taxRelief,
-            'pit_advance'          => $pitAdvance,
-            'ppk_employee'         => $ppkEmployee,
-            'ppk_employer'         => $ppkEmployer,
-            'net_salary'           => $netSalary,
-            'zus_emerytalne_emp2'  => $zusEmerytalneEr,
-            'zus_rentowe_emp2'     => $zusRentowneEr,
-            'zus_wypadkowe_emp2'   => $zusWypadkoweEr,
-            'zus_fp_emp2'          => $zusFpEr,
-            'zus_fgsp_emp2'        => $zusFgspEr,
-            'zus_fep_emp2'         => $zusFepEr,
-            'zus_total_employer'   => $zusTotalEmployer,
-            'employer_total_cost'  => $employerTotalCost,
-            'ytd_gross'            => $ytdGross + $grossSalary,
-            'ytd_zus_base'         => $ytdZusBase + $zusBaseForCalc,
-            'calculation_params'   => json_encode($calcParams),
+            'base_salary' => $baseSalary * $fraction, 'overtime_pay' => $overtimePay,
+            'bonus' => $bonus, 'other_additions' => $otherAdditions, 'sick_pay_reduction' => $sickPayReduction,
+            'gross_salary' => $grossSalary, 'zus_emerytalne_emp' => $zusEmerytalneEmp,
+            'zus_rentowe_emp' => $zusRentowneEmp, 'zus_chorobowe_emp' => $zusChoroboweEmp,
+            'zus_total_employee' => $zusTotalEmployee, 'kup_amount' => $kupAmount,
+            'tax_base' => $taxBase, 'pit_rate' => (int) ($pitRate * 100),
+            'pit_calculated' => $pitCalculated, 'tax_relief_monthly' => $taxRelief,
+            'pit_advance' => $pitAdvance, 'ppk_employee' => $ppkEmployee, 'ppk_employer' => $ppkEmployer,
+            'net_salary' => $netSalary, 'zus_emerytalne_emp2' => $zusEmerytalneEr,
+            'zus_rentowe_emp2' => $zusRentowneEr, 'zus_wypadkowe_emp2' => $zusWypadkoweEr,
+            'zus_fp_emp2' => $zusFpEr, 'zus_fgsp_emp2' => $zusFgspEr, 'zus_fep_emp2' => $zusFepEr,
+            'zus_total_employer' => $zusTotalEmployer, 'employer_total_cost' => $employerTotalCost,
+            'ytd_gross' => $ytdGross + $grossSalary, 'ytd_zus_base' => $ytdZusBase + $zusBaseForCalc,
+            'calculation_params' => json_encode($calcParams),
         ];
     }
 
-    private static function calculateUod(
-        float $grossSalary, float $baseSalary, float $fraction,
-        float $overtimePay, float $bonus, float $otherAdditions, float $sickPayReduction,
-        array $settings, float $ytdGross, float $pitThreshold,
-        bool $pit2Submitted, bool $ppkEnrolled, float $ppkEmpRate, float $ppkErRate
-    ): array {
+    private static function calculateUod(float $grossSalary, float $baseSalary, float $fraction, float $overtimePay, float $bonus, float $otherAdditions, float $sickPayReduction, array $settings, float $ytdGross, float $pitThreshold, bool $pit2Submitted, bool $ppkEnrolled, float $ppkEmpRate, float $ppkErRate): array
+    {
         $monthlyRelief = (float) ($settings['monthly_tax_relief'] ?? 300.00);
-
         $kupAmount  = round($grossSalary * 0.50, 2);
         $taxBase    = max(0, (int) round($grossSalary - $kupAmount));
         $pitRate    = ($ytdGross >= $pitThreshold) ? 0.32 : 0.12;
         $taxRelief  = $pit2Submitted ? $monthlyRelief : 0.0;
         $pitAdvance = max(0, (int) round($taxBase * $pitRate - $taxRelief));
+        $netSalary  = round($grossSalary - $pitAdvance, 2);
 
-        $netSalary = round($grossSalary - $pitAdvance, 2);
-
-        $calcParams = [
-            'contract_type'  => 'uod',
-            'kup_pct'        => 50,
-            'pit_rate'       => $pitRate,
-            'tax_relief'     => $taxRelief,
-            'pit2_submitted' => $pit2Submitted,
-        ];
+        $calcParams = ['contract_type' => 'uod', 'kup_pct' => 50, 'pit_rate' => $pitRate, 'tax_relief' => $taxRelief, 'pit2_submitted' => $pit2Submitted];
 
         return [
-            'base_salary'          => $baseSalary * $fraction,
-            'overtime_pay'         => $overtimePay,
-            'bonus'                => $bonus,
-            'other_additions'      => $otherAdditions,
-            'sick_pay_reduction'   => $sickPayReduction,
-            'gross_salary'         => $grossSalary,
-            'zus_emerytalne_emp'   => 0.0, 'zus_rentowe_emp' => 0.0,
-            'zus_chorobowe_emp'    => 0.0, 'zus_total_employee' => 0.0,
-            'kup_amount'           => $kupAmount,
-            'tax_base'             => $taxBase,
-            'pit_rate'             => (int) ($pitRate * 100),
-            'pit_calculated'       => round($taxBase * $pitRate, 2),
-            'tax_relief_monthly'   => $taxRelief,
-            'pit_advance'          => $pitAdvance,
-            'ppk_employee'         => 0.0, 'ppk_employer' => 0.0,
-            'net_salary'           => $netSalary,
-            'zus_emerytalne_emp2'  => 0.0, 'zus_rentowe_emp2' => 0.0,
-            'zus_wypadkowe_emp2'   => 0.0, 'zus_fp_emp2' => 0.0,
-            'zus_fgsp_emp2'        => 0.0, 'zus_fep_emp2' => 0.0,
-            'zus_total_employer'   => 0.0,
-            'employer_total_cost'  => $grossSalary,
-            'ytd_gross'            => $ytdGross + $grossSalary,
-            'ytd_zus_base'         => 0.0,
-            'calculation_params'   => json_encode($calcParams),
+            'base_salary' => $baseSalary * $fraction, 'overtime_pay' => $overtimePay,
+            'bonus' => $bonus, 'other_additions' => $otherAdditions, 'sick_pay_reduction' => $sickPayReduction,
+            'gross_salary' => $grossSalary, 'zus_emerytalne_emp' => 0.0, 'zus_rentowe_emp' => 0.0,
+            'zus_chorobowe_emp' => 0.0, 'zus_total_employee' => 0.0, 'kup_amount' => $kupAmount,
+            'tax_base' => $taxBase, 'pit_rate' => (int) ($pitRate * 100),
+            'pit_calculated' => round($taxBase * $pitRate, 2), 'tax_relief_monthly' => $taxRelief,
+            'pit_advance' => $pitAdvance, 'ppk_employee' => 0.0, 'ppk_employer' => 0.0,
+            'net_salary' => $netSalary, 'zus_emerytalne_emp2' => 0.0, 'zus_rentowe_emp2' => 0.0,
+            'zus_wypadkowe_emp2' => 0.0, 'zus_fp_emp2' => 0.0, 'zus_fgsp_emp2' => 0.0, 'zus_fep_emp2' => 0.0,
+            'zus_total_employer' => 0.0, 'employer_total_cost' => $grossSalary,
+            'ytd_gross' => $ytdGross + $grossSalary, 'ytd_zus_base' => 0.0,
+            'calculation_params' => json_encode($calcParams),
         ];
     }
 }
