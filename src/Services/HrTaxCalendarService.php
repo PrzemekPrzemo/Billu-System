@@ -19,9 +19,7 @@ class HrTaxCalendarService
             [$year, $month]
         );
 
-        if (empty($clients)) {
-            return 0;
-        }
+        if (empty($clients)) return 0;
 
         $nextMonth = $month === 12 ? 1    : $month + 1;
         $nextYear  = $month === 12 ? $year + 1 : $year;
@@ -58,14 +56,10 @@ class HrTaxCalendarService
             [$taxYear]
         );
 
-        if (empty($clients)) {
-            return 0;
-        }
+        if (empty($clients)) return 0;
 
         $nextYear = $taxYear + 1;
-
         $pit4rDeadline = self::adjustForWeekend(sprintf('%04d-01-31', $nextYear));
-
         $febDays = (($nextYear % 4 === 0 && $nextYear % 100 !== 0) || $nextYear % 400 === 0) ? 29 : 28;
         $pit11Deadline = self::adjustForWeekend(sprintf('%04d-02-%02d', $nextYear, $febDays));
 
@@ -91,12 +85,8 @@ class HrTaxCalendarService
         $ts  = strtotime($date);
         $dow = (int) date('N', $ts);
 
-        if ($dow === 6) {
-            return date('Y-m-d', $ts + 2 * 86400);
-        }
-        if ($dow === 7) {
-            return date('Y-m-d', $ts + 86400);
-        }
+        if ($dow === 6) return date('Y-m-d', $ts + 2 * 86400);
+        if ($dow === 7) return date('Y-m-d', $ts + 86400);
 
         return $date;
     }
