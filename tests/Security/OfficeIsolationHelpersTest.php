@@ -46,11 +46,22 @@ final class OfficeIsolationHelpersTest extends TestCase
         self::assertTrue($m->isPrivate());
     }
 
+    /**
+     * Build a regex that matches a method body without crossing into the next
+     * method declaration. Negative lookahead `(?!public function)` lets us
+     * traverse past inner `}` braces (e.g. from `if () { … }`) which a naive
+     * `[^}]+?` would mistakenly stop at.
+     */
+    private static function bodyContains(string $method, string $needle): string
+    {
+        return '/public function ' . preg_quote($method, '/')
+             . '\b(?:(?!public function).)*?' . preg_quote($needle, '/') . '/s';
+    }
+
     /** Smoke: every HR endpoint that takes {clientId} must reference requireClientForOffice. */
     public function testHrEndpointsReferenceTenantGate(): void
     {
         $source = file_get_contents((new ReflectionClass(OfficeController::class))->getFileName());
-        // Methods that take clientId in URL.
         $clientIdMethods = [
             'hrEmployees', 'hrEmployeeCreate', 'hrEmployeeStore',
             'hrEmployeeEdit', 'hrEmployeeUpdate',
@@ -60,9 +71,8 @@ final class OfficeIsolationHelpersTest extends TestCase
             'hrDeclarations', 'hrDeclarationGenerate',
         ];
         foreach ($clientIdMethods as $method) {
-            // Crude but effective: extract the method body, must mention requireClientForOffice.
             self::assertMatchesRegularExpression(
-                '/function\s+' . preg_quote($method, '/') . '\b[^}]+?requireClientForOffice/s',
+                self::bodyContains($method, 'requireClientForOffice'),
                 $source,
                 "{$method} must call \$this->requireClientForOffice() before touching client data."
             );
@@ -81,7 +91,7 @@ final class OfficeIsolationHelpersTest extends TestCase
         ];
         foreach ($recordMethods as $method) {
             self::assertMatchesRegularExpression(
-                '/function\s+' . preg_quote($method, '/') . '\b[^}]+?requireRecordForOffice/s',
+                self::bodyContains($method, 'requireRecordForOffice'),
                 $source,
                 "{$method} must call \$this->requireRecordForOffice() before acting on the record."
             );
