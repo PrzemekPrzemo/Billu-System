@@ -1826,6 +1826,7 @@ return [
     'module_cat_system'        => 'System',
 
     // HR / Kadry i Płace
+    'hr_module'                => 'Kadry i Płace',
     'hr_dashboard'             => 'Panel HR',
     'hr_employees'             => 'Pracownicy',
     'hr_employee_list'         => 'Lista pracowników',
