@@ -1,5 +1,14 @@
 <h1><?= $lang('security') ?></h1>
 
+<a href="/trusted-devices" class="form-card" style="display:flex;align-items:center;gap:12px;padding:14px 18px;text-decoration:none;color:inherit;margin-bottom:16px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <div style="flex:1;">
+        <div style="font-weight:600;"><?= $lang('trusted_devices') ?></div>
+        <div class="text-muted" style="font-size:13px;"><?= $lang('trusted_devices_intro') ?></div>
+    </div>
+    <span aria-hidden="true">&rarr;</span>
+</a>
+
 <div class="section">
     <h2><?= $lang('change_password') ?></h2>
     <div class="form-card" style="padding:16px; max-width:500px;">

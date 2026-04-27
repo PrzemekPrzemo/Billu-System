@@ -720,6 +720,7 @@ class Auth
         if (self::isClient()) return Session::get('client_id');
         if (self::isOffice()) return Session::get('office_id');
         if (self::isEmployee()) return Session::get('employee_id');
+        if (self::isClientEmployee()) return Session::get('client_employee_id');
         return null;
     }
 

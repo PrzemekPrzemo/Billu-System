@@ -71,6 +71,11 @@ $router->get('/two-factor-setup', [AuthController::class, 'twoFactorSetupForm'])
 $router->post('/two-factor-setup', [AuthController::class, 'twoFactorEnable']);
 $router->get('/two-factor-recovery', [AuthController::class, 'twoFactorRecovery']);
 
+// Trusted devices (self-service for any logged-in user)
+$router->get('/trusted-devices', [\App\Controllers\TrustedDeviceController::class, 'index']);
+$router->post('/trusted-devices/{id}/revoke', [\App\Controllers\TrustedDeviceController::class, 'revoke']);
+$router->post('/trusted-devices/revoke-all', [\App\Controllers\TrustedDeviceController::class, 'revokeAll']);
+
 // Client-employee authentication & activation
 $router->get('/employee/login', [AuthController::class, 'clientEmployeeLoginForm']);
 $router->post('/employee/login', [AuthController::class, 'clientEmployeeLogin']);
