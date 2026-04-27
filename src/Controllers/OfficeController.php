@@ -829,7 +829,8 @@ class OfficeController extends Controller
 
     public function employees(): void
     {
-        ModuleAccess::requireModule('hr');
+        // Office staff (accountants) is a core feature — NOT part of the HR / Payroll module
+        // (which manages client_employees, not office staff). Don't gate on \$canModule('hr').
         if (Auth::isEmployee()) { $this->redirect('/office'); return; }
         $officeId = Session::get('office_id');
         $employees = OfficeEmployee::findByOffice($officeId, false);
@@ -838,7 +839,6 @@ class OfficeController extends Controller
 
     public function employeeCreateForm(): void
     {
-        ModuleAccess::requireModule('hr');
         if (Auth::isEmployee()) { $this->redirect('/office'); return; }
         $officeId = Session::get('office_id');
         $clients = Client::findByOffice($officeId, true);
@@ -851,7 +851,6 @@ class OfficeController extends Controller
 
     public function employeeCreate(): void
     {
-        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
@@ -926,7 +925,6 @@ class OfficeController extends Controller
 
     public function employeeEditForm(string $id): void
     {
-        ModuleAccess::requireModule('hr');
         $officeId = Session::get('office_id');
         $employee = OfficeEmployee::findById((int) $id);
 
@@ -947,7 +945,6 @@ class OfficeController extends Controller
 
     public function employeeUpdate(string $id): void
     {
-        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
@@ -1012,7 +1009,6 @@ class OfficeController extends Controller
 
     public function employeeDelete(string $id): void
     {
-        ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect('/office/employees'); return; }
 
         $officeId = Session::get('office_id');
