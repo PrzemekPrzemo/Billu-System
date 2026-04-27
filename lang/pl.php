@@ -1811,6 +1811,7 @@ return [
     'modules_management'       => 'Zarządzanie modułami',
     'modules_for_office'       => 'Moduły dla biura',
     'modules_saved'            => 'Konfiguracja modułów została zapisana.',
+    'modules_save_hint'        => 'Moduły zapiszą się razem z biurem po kliknięciu „Zapisz" na dole formularza. Wymagane zależności dołączą się automatycznie.',
     'module_enabled'           => 'Włączony',
     'module_disabled'          => 'Wyłączony',
     'module_not_available'     => 'Ten moduł nie jest dostępny dla Twojego biura.',
