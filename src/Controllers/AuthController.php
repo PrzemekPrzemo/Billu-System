@@ -10,6 +10,7 @@ use App\Core\Language;
 use App\Core\TwoFactorAuth;
 use App\Models\AuditLog;
 use App\Models\Client;
+use App\Models\ClientEmployee;
 use App\Models\Office;
 use App\Models\OfficeEmployee;
 use App\Models\User;
@@ -716,5 +717,108 @@ class AuthController extends Controller
             Auth::stopImpersonation();
             $this->redirect('/admin');
         }
+    }
+
+    // ── Client-employee login & activation ─────────
+
+    public function clientEmployeeLoginForm(): void
+    {
+        if (Auth::isClientEmployee()) { $this->redirect('/employee'); return; }
+        $this->renderWithoutLayout('auth/employee_login');
+    }
+
+    public function clientEmployeeLogin(): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect('/employee/login'); return; }
+        if (Auth::isRateLimited()) {
+            Session::flash('error', 'rate_limited');
+            $this->redirect('/employee/login');
+            return;
+        }
+
+        $email    = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        $result = Auth::loginClientEmployee($email, $password);
+        if ($result === true) {
+            $this->redirect('/employee');
+            return;
+        }
+        if ($result === 'require_2fa') {
+            $this->redirect('/two-factor-verify');
+            return;
+        }
+        if ($result === 'require_2fa_setup') {
+            $this->redirect('/two-factor-setup');
+            return;
+        }
+        if ($result === 'force_password_change') {
+            $this->redirect('/employee/change-password');
+            return;
+        }
+        if ($result === 'account_deactivated') {
+            $this->redirect('/account-blocked');
+            return;
+        }
+        Session::flash('error', 'invalid_credentials');
+        $this->redirect('/employee/login');
+    }
+
+    public function clientEmployeeLogout(): void
+    {
+        Session::destroy();
+        $this->redirect('/employee/login');
+    }
+
+    public function employeeActivateForm(): void
+    {
+        $token = $_GET['token'] ?? '';
+        $employee = $token !== '' ? ClientEmployee::findByActivationToken($token) : null;
+        if (!$employee) {
+            Session::flash('error', 'invalid_or_expired_token');
+            $this->redirect('/employee/login');
+            return;
+        }
+        $this->renderWithoutLayout('auth/employee_activate', [
+            'token'    => $token,
+            'employee' => $employee,
+        ]);
+    }
+
+    public function employeeActivate(): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect('/employee/login'); return; }
+
+        $token    = $_POST['token'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $confirm  = $_POST['confirm_password'] ?? '';
+
+        $employee = ClientEmployee::findByActivationToken($token);
+        if (!$employee) {
+            Session::flash('error', 'invalid_or_expired_token');
+            $this->redirect('/employee/login');
+            return;
+        }
+        if ($password !== $confirm) {
+            Session::flash('error', 'passwords_not_match');
+            $this->redirect('/employee/activate?token=' . urlencode($token));
+            return;
+        }
+        $errors = Auth::validatePasswordStrength($password);
+        if (!empty($errors)) {
+            Session::flash('error', $errors[0]);
+            $this->redirect('/employee/activate?token=' . urlencode($token));
+            return;
+        }
+
+        ClientEmployee::setPasswordAndActivate(
+            (int) $employee['id'],
+            Auth::hashPassword($password)
+        );
+        AuditLog::log('client_employee', (int) $employee['id'], 'account_activated',
+            'Account activated via invitation token', 'client_employee', (int) $employee['id']);
+
+        Session::flash('success', 'account_activated_login');
+        $this->redirect('/employee/login');
     }
 }

@@ -70,6 +70,13 @@ $router->post('/two-factor-verify', [AuthController::class, 'twoFactorVerify']);
 $router->get('/two-factor-setup', [AuthController::class, 'twoFactorSetupForm']);
 $router->post('/two-factor-setup', [AuthController::class, 'twoFactorEnable']);
 $router->get('/two-factor-recovery', [AuthController::class, 'twoFactorRecovery']);
+
+// Client-employee authentication & activation
+$router->get('/employee/login', [AuthController::class, 'clientEmployeeLoginForm']);
+$router->post('/employee/login', [AuthController::class, 'clientEmployeeLogin']);
+$router->get('/employee/logout', [AuthController::class, 'clientEmployeeLogout']);
+$router->get('/employee/activate', [AuthController::class, 'employeeActivateForm']);
+$router->post('/employee/activate', [AuthController::class, 'employeeActivate']);
 $router->post('/two-factor-disable', [AuthController::class, 'twoFactorDisable']);
 
 // ── Admin Routes (/admin) ──────────────────────────
