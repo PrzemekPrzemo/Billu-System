@@ -69,7 +69,24 @@ $uaShort = static function (string $ua): string {
                             </div>
                         <?php endif; ?>
                     </td>
-                    <td class="text-muted"><?= htmlspecialchars($d['ip_address'] ?? '-') ?></td>
+                    <td class="text-muted">
+                        <div><?= htmlspecialchars($d['ip_address'] ?? '-') ?></div>
+                        <?php
+                          $geoLine = trim(implode(', ', array_filter([
+                              $d['geo_city']    ?? null,
+                              $d['geo_region']  ?? null,
+                              $d['geo_country'] ?? null,
+                          ])));
+                        ?>
+                        <?php if ($geoLine !== ''): ?>
+                            <div style="font-size:11px;">
+                                <?php if (!empty($d['geo_country_code'])): ?>
+                                    <span style="font-weight:600;"><?= htmlspecialchars($d['geo_country_code']) ?></span> ·
+                                <?php endif; ?>
+                                <?= htmlspecialchars($geoLine) ?>
+                            </div>
+                        <?php endif; ?>
+                    </td>
                     <td class="text-muted"><?= htmlspecialchars($d['created_at']) ?></td>
                     <td class="text-muted"><?= htmlspecialchars($d['last_used_at'] ?? '-') ?></td>
                     <td class="text-muted"><?= htmlspecialchars($d['expires_at']) ?></td>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Core\Database;
+use App\Services\IpGeoService;
 
 /**
  * Trusted device — lets a user skip 2FA on a specific browser for a
@@ -24,15 +25,23 @@ class TrustedDevice
         $token = bin2hex(random_bytes(32));
         $hash  = hash('sha256', $token);
         $expiresAt = date('Y-m-d H:i:s', time() + $ttlDays * 86400);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+
+        // Best-effort geo lookup. Cached per-IP for 30 days, 2 s timeout, never throws.
+        $geo = $ip ? IpGeoService::lookup($ip) : null;
 
         Database::getInstance()->insert('trusted_devices', [
-            'user_type'    => $userType,
-            'user_id'      => $userId,
-            'token_hash'   => $hash,
-            'expires_at'   => $expiresAt,
-            'user_agent'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
-            'ip_address'   => $_SERVER['REMOTE_ADDR'] ?? null,
-            'device_label' => $label,
+            'user_type'        => $userType,
+            'user_id'          => $userId,
+            'token_hash'       => $hash,
+            'expires_at'       => $expiresAt,
+            'user_agent'       => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
+            'ip_address'       => $ip,
+            'device_label'     => $label,
+            'geo_country'      => $geo['country']      ?? null,
+            'geo_country_code' => $geo['country_code'] ?? null,
+            'geo_region'       => $geo['region']       ?? null,
+            'geo_city'         => $geo['city']         ?? null,
         ]);
 
         return $token;
@@ -68,12 +77,49 @@ class TrustedDevice
     public static function findByUser(string $userType, int $userId): array
     {
         return Database::getInstance()->fetchAll(
-            "SELECT id, expires_at, created_at, last_used_at, user_agent, ip_address, device_label
+            "SELECT id, expires_at, created_at, last_used_at, user_agent, ip_address, device_label,
+                    geo_country, geo_country_code, geo_region, geo_city
              FROM trusted_devices
              WHERE user_type = ? AND user_id = ? AND expires_at > NOW()
              ORDER BY created_at DESC",
             [$userType, $userId]
         );
+    }
+
+    /**
+     * Lazily fill geo columns for rows that were created before geo support
+     * (or where the issue-time lookup failed). Called from /trusted-devices.
+     * Caps at $limit lookups per call so opening the page never blocks longer
+     * than ~$limit * 2s. Returns the (possibly mutated) device list.
+     */
+    public static function attachGeoIfMissing(array $devices, int $limit = 5): array
+    {
+        $remaining = $limit;
+        foreach ($devices as &$d) {
+            if ($remaining <= 0) {
+                break;
+            }
+            if (!empty($d['geo_country']) || empty($d['ip_address'])) {
+                continue;
+            }
+            $geo = IpGeoService::lookup((string) $d['ip_address']);
+            if ($geo === null) {
+                continue;
+            }
+            Database::getInstance()->update('trusted_devices', [
+                'geo_country'      => $geo['country'],
+                'geo_country_code' => $geo['country_code'],
+                'geo_region'       => $geo['region'],
+                'geo_city'         => $geo['city'],
+            ], 'id = ?', [(int) $d['id']]);
+            $d['geo_country']      = $geo['country'];
+            $d['geo_country_code'] = $geo['country_code'];
+            $d['geo_region']       = $geo['region'];
+            $d['geo_city']         = $geo['city'];
+            $remaining--;
+        }
+        unset($d);
+        return $devices;
     }
 
     /** Revoke a single device, ownership-checked. Returns true if a row was removed. */

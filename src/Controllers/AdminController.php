@@ -1457,6 +1457,7 @@ class AdminController extends Controller
             'system_name', 'system_description', 'primary_color', 'secondary_color', 'accent_color',
             'privacy_policy_enabled', 'privacy_policy_text',
             '2fa_enabled', '2fa_required', '2fa_required_admin', '2fa_required_client', '2fa_required_office',
+            'trusted_device_ttl_days',
             'support_contact_name', 'support_contact_email', 'support_contact_phone',
             'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_user', 'smtp_from_email', 'smtp_from_name',
             'mobile_api_enabled',

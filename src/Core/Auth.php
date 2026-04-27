@@ -945,9 +945,15 @@ class Auth
     /**
      * Issue a fresh trusted-device cookie + DB row after a successful 2FA
      * verification when the user opted in via the "remember this device" checkbox.
+     * TTL: caller may pass a value, or null to use the system setting
+     * (trusted_device_ttl_days, default 5, clamped to 1..90).
      */
-    public static function issueTrustedDeviceCookie(string $userType, int $userId, int $ttlDays = TrustedDevice::DEFAULT_TTL_DAYS): void
+    public static function issueTrustedDeviceCookie(string $userType, int $userId, ?int $ttlDays = null): void
     {
+        if ($ttlDays === null) {
+            $configured = (int) \App\Models\Setting::get('trusted_device_ttl_days', (string) TrustedDevice::DEFAULT_TTL_DAYS);
+            $ttlDays = max(1, min(90, $configured ?: TrustedDevice::DEFAULT_TTL_DAYS));
+        }
         $token = TrustedDevice::issue($userType, $userId, $ttlDays);
         $expires = time() + $ttlDays * 86400;
         $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';

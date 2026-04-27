@@ -444,6 +444,19 @@
                 <small class="form-hint">Wymusza konfigurację 2FA dla wszystkich kont klienckich przy następnym logowaniu.</small>
             </div>
         </div>
+
+        <div class="form-group">
+            <label class="form-label">Zaufane urządzenia — okres pamiętania (dni)</label>
+            <input type="number" name="trusted_device_ttl_days" class="form-input"
+                   min="1" max="90" step="1"
+                   value="<?= htmlspecialchars($values['trusted_device_ttl_days'] ?? '5') ?>"
+                   style="max-width:160px;">
+            <small class="form-hint">
+                Po pomyślnej weryfikacji 2FA użytkownik może zaznaczyć „Zapamiętaj to urządzenie".
+                Przez tyle dni system nie zapyta go o kod 2FA z tej przeglądarki.
+                Dopuszczalny zakres: 1–90 dni. Domyślnie: 5.
+            </small>
+        </div>
     </div>
 
     <!-- Privacy Policy Settings -->

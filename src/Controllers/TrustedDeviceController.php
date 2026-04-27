@@ -24,6 +24,9 @@ class TrustedDeviceController extends Controller
         $userId   = (int) Auth::currentUserId();
 
         $devices = TrustedDevice::findByUser($userType, $userId);
+        // Lazy-fill geo for older rows; capped so the page never blocks long.
+        $devices = TrustedDevice::attachGeoIfMissing($devices, 5);
+
         $currentToken = $_COOKIE[TrustedDevice::COOKIE_NAME] ?? '';
         $currentHash = $currentToken !== '' ? hash('sha256', $currentToken) : null;
 
