@@ -9,6 +9,7 @@ use App\Models\Report;
 use App\Models\Setting;
 use App\Models\AuditLog;
 use App\Services\KsefApiService;
+use App\Services\MailQueueService;
 use App\Services\ScheduledExportService;
 use App\Models\KsefConfig;
 use App\Models\IssuedInvoice;
@@ -392,6 +393,14 @@ class CronService
             $db->query("UPDATE issued_invoices SET ksef_upo_path = NULL WHERE ksef_upo_path IS NOT NULL AND ksef_sent_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
         } catch (\Exception $e) {
             $results['errors'][] = 'UPO path cleanup: ' . $e->getMessage();
+        }
+
+        // 7. Mail queue cleanup (sent > 30d, failed > 90d)
+        try {
+            $mq = MailQueueService::cleanup();
+            $results['mail_queue_cleared'] = $mq['sent_deleted'] + $mq['failed_deleted'];
+        } catch (\Exception $e) {
+            $results['errors'][] = 'mail_queue cleanup: ' . $e->getMessage();
         }
 
         return $results;
