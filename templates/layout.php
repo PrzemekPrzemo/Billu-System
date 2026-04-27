@@ -55,8 +55,16 @@
 
     <nav class="navbar">
         <div class="container nav-container">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div class="nav-topbar-left" style="display:flex;align-items:center;gap:12px;">
                 <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-open')" aria-label="Menu">&#9776;</button>
+                <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>"
+                   class="topbar-logo">
+                    <img src="<?= htmlspecialchars($branding['logo_path'] ?? '/assets/img/logo.svg') ?>"
+                         alt="BiLLU" class="topbar-logo-light">
+                    <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>"
+                         alt="BiLLU" class="topbar-logo-dark">
+                    <span class="topbar-logo-text">Panel</span>
+                </a>
             </div>
 
             <?php
@@ -127,13 +135,6 @@
 
     <!-- ===== SIDEBAR ===== -->
     <aside class="app-sidebar" id="app-sidebar">
-        <div class="sidebar-logo">
-            <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>">
-                <img src="<?= htmlspecialchars($branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-light">
-                <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-dark">
-            </a>
-            <div class="sidebar-logo-text">Panel</div>
-        </div>
         <nav class="sidebar-nav">
             <?php if ($isAdmin): ?>
                 <!-- ADMIN SIDEBAR -->
