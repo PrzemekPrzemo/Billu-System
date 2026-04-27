@@ -6,9 +6,22 @@ use App\Core\Database;
 
 class Client
 {
+    /** Per-request memoization findById. */
+    private static array $memo = [];
+
     public static function findById(int $id): ?array
     {
-        return Database::getInstance()->fetchOne("SELECT * FROM clients WHERE id = ?", [$id]);
+        if (array_key_exists($id, self::$memo)) {
+            return self::$memo[$id];
+        }
+        $row = Database::getInstance()->fetchOne("SELECT * FROM clients WHERE id = ?", [$id]);
+        self::$memo[$id] = $row;
+        return $row;
+    }
+
+    public static function flushMemo(): void
+    {
+        self::$memo = [];
     }
 
     public static function findByNip(string $nip): ?array
@@ -60,12 +73,15 @@ class Client
 
     public static function update(int $id, array $data): int
     {
-        return Database::getInstance()->update('clients', $data, 'id = ?', [$id]);
+        $rows = Database::getInstance()->update('clients', $data, 'id = ?', [$id]);
+        unset(self::$memo[$id]);
+        return $rows;
     }
 
     public static function delete(int $id): void
     {
         Database::getInstance()->query("DELETE FROM clients WHERE id = ?", [$id]);
+        unset(self::$memo[$id]);
     }
 
     public static function updateLastLogin(int $id): void

@@ -6,9 +6,22 @@ use App\Core\Database;
 
 class Office
 {
+    /** Per-request memoization findById. */
+    private static array $memo = [];
+
     public static function findById(int $id): ?array
     {
-        return Database::getInstance()->fetchOne("SELECT * FROM offices WHERE id = ?", [$id]);
+        if (array_key_exists($id, self::$memo)) {
+            return self::$memo[$id];
+        }
+        $row = Database::getInstance()->fetchOne("SELECT * FROM offices WHERE id = ?", [$id]);
+        self::$memo[$id] = $row;
+        return $row;
+    }
+
+    public static function flushMemo(): void
+    {
+        self::$memo = [];
     }
 
     public static function findByNip(string $nip): ?array
@@ -43,7 +56,9 @@ class Office
 
     public static function update(int $id, array $data): int
     {
-        return Database::getInstance()->update('offices', $data, 'id = ?', [$id]);
+        $rows = Database::getInstance()->update('offices', $data, 'id = ?', [$id]);
+        unset(self::$memo[$id]);
+        return $rows;
     }
 
     public static function updateLastLogin(int $id): void
