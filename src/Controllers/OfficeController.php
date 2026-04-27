@@ -67,6 +67,51 @@ class OfficeController extends Controller
         return null;
     }
 
+    /**
+     * Centralized tenant gate for every endpoint that takes {clientId} in the URL.
+     * Verifies (1) client exists, (2) client.office_id matches session office_id,
+     * (3) for office-employees, the client is in the assignment filter.
+     * Redirects + returns null on any mismatch — caller MUST check the return.
+     */
+    private function requireClientForOffice($clientId, string $redirectUrl = '/office/hr'): ?array
+    {
+        $clientId = (int) $clientId;
+        $client = Client::findById($clientId);
+        $officeId = (int) Session::get('office_id');
+
+        if (!$client || (int) ($client['office_id'] ?? 0) !== $officeId) {
+            $this->redirect($redirectUrl);
+            return null;
+        }
+
+        $filter = $this->getEmployeeClientFilter();
+        if ($filter !== null && !in_array($clientId, $filter, true)) {
+            $this->redirect($redirectUrl);
+            return null;
+        }
+
+        return $client;
+    }
+
+    /**
+     * Verifies a record (already loaded) belongs to a client of the current office
+     * and — for office-employees — that the client is assigned. Used for endpoints
+     * that take a record id (payroll list / leave / contract / declaration) without
+     * a client id in the URL. Returns the record on success, null after redirect.
+     */
+    private function requireRecordForOffice(?array $record, string $redirectUrl = '/office/hr'): ?array
+    {
+        if (!$record) {
+            $this->redirect($redirectUrl);
+            return null;
+        }
+        $clientId = (int) ($record['client_id'] ?? 0);
+        if ($clientId === 0 || $this->requireClientForOffice($clientId, $redirectUrl) === null) {
+            return null;
+        }
+        return $record;
+    }
+
     public function dashboard(): void
     {
         $officeId = Session::get('office_id');
@@ -3090,10 +3135,10 @@ class OfficeController extends Controller
     public function hrEmployees(string $clientId): void
     {
         ModuleAccess::requireModule('hr');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
-        $employees = ClientEmployee::findByClient((int)$clientId);
+        $employees = ClientEmployee::findByClient((int)$clientId, false);
         $this->render('office/hr_employees', [
             'client' => $client,
             'employees' => $employees,
@@ -3103,8 +3148,8 @@ class OfficeController extends Controller
     public function hrEmployeeCreate(string $clientId): void
     {
         ModuleAccess::requireModule('hr');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $this->render('office/hr_employee_form', [
             'client' => $client,
@@ -3116,6 +3161,7 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/employees/create"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/employees") === null) { return; }
 
         $data = [
             'client_id' => (int)$clientId,
@@ -3145,9 +3191,10 @@ class OfficeController extends Controller
     public function hrEmployeeEdit(string $clientId, string $employeeId): void
     {
         ModuleAccess::requireModule('hr');
-        $client = Client::findById((int)$clientId);
-        $employee = ClientEmployee::findById((int)$employeeId);
-        if (!$client || !$employee) { $this->redirect("/office/hr/{$clientId}/employees"); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
+        $employee = ClientEmployee::findByIdForClient((int)$employeeId, (int)$clientId);
+        if (!$employee) { $this->redirect("/office/hr/{$clientId}/employees"); return; }
 
         $this->render('office/hr_employee_form', [
             'client' => $client,
@@ -3159,6 +3206,11 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/employees/{$employeeId}/edit"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/employees") === null) { return; }
+        if (!ClientEmployee::findByIdForClient((int)$employeeId, (int)$clientId)) {
+            $this->redirect("/office/hr/{$clientId}/employees");
+            return;
+        }
 
         $data = [
             'first_name' => $this->sanitize($_POST['first_name'] ?? ''),
@@ -3186,8 +3238,8 @@ class OfficeController extends Controller
     public function hrContracts(string $clientId): void
     {
         ModuleAccess::requireHrModule('payroll-contracts');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $contracts = EmployeeContract::findByClient((int)$clientId);
         $this->render('office/hr_contracts', [
@@ -3199,8 +3251,8 @@ class OfficeController extends Controller
     public function hrContractCreate(string $clientId): void
     {
         ModuleAccess::requireHrModule('payroll-contracts');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $employees = ClientEmployee::findByClient((int)$clientId);
         $this->render('office/hr_contract_form', [
@@ -3214,10 +3266,17 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireHrModule('payroll-contracts');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/contracts/create"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/contracts") === null) { return; }
+
+        $employeeId = (int)($_POST['employee_id'] ?? 0);
+        if (!ClientEmployee::findByIdForClient($employeeId, (int)$clientId)) {
+            $this->redirect("/office/hr/{$clientId}/contracts/create");
+            return;
+        }
 
         $data = [
             'client_id' => (int)$clientId,
-            'employee_id' => (int)($_POST['employee_id'] ?? 0),
+            'employee_id' => $employeeId,
             'contract_type' => $_POST['contract_type'] ?? 'umowa_o_prace',
             'work_time_fraction' => (float)($_POST['work_time_fraction'] ?? 1.00),
             'position' => $this->sanitize($_POST['position'] ?? ''),
@@ -3265,8 +3324,8 @@ class OfficeController extends Controller
     public function hrContractEdit(string $contractId): void
     {
         ModuleAccess::requireHrModule('payroll-contracts');
-        $contract = EmployeeContract::findById((int)$contractId);
-        if (!$contract) { $this->redirect('/office/hr'); return; }
+        $contract = $this->requireRecordForOffice(EmployeeContract::findById((int)$contractId));
+        if ($contract === null) { return; }
 
         $clientId = (int)$contract['client_id'];
         $client = Client::findById($clientId);
@@ -3282,8 +3341,8 @@ class OfficeController extends Controller
     public function hrContractUpdate(string $contractId): void
     {
         ModuleAccess::requireHrModule('payroll-contracts');
-        $contract = EmployeeContract::findById((int)$contractId);
-        if (!$contract) { $this->redirect('/office/hr'); return; }
+        $contract = $this->requireRecordForOffice(EmployeeContract::findById((int)$contractId));
+        if ($contract === null) { return; }
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/contracts/{$contractId}/edit"); return; }
 
         $data = [
@@ -3321,8 +3380,8 @@ class OfficeController extends Controller
     public function hrPayrollList(string $clientId): void
     {
         ModuleAccess::requireHrModule('payroll-lists');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $lists = PayrollList::findByClient((int)$clientId);
         $this->render('office/hr_payroll_lists', [
@@ -3335,6 +3394,7 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireHrModule('payroll-lists');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/payroll"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/payroll") === null) { return; }
 
         $year = (int)($_POST['year'] ?? date('Y'));
         $month = (int)($_POST['month'] ?? date('n'));
@@ -3356,8 +3416,8 @@ class OfficeController extends Controller
     public function hrPayrollDetail(string $listId): void
     {
         ModuleAccess::requireHrModule('payroll-lists');
-        $list = PayrollList::findById((int)$listId);
-        if (!$list) { $this->redirect('/office/hr'); return; }
+        $list = $this->requireRecordForOffice(PayrollList::findById((int)$listId));
+        if ($list === null) { return; }
 
         $entries = PayrollEntry::findByPayrollList((int)$listId);
         $client = Client::findById((int)$list['client_id']);
@@ -3373,6 +3433,7 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireHrModule('payroll-lists');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/payroll/{$listId}"); return; }
+        if ($this->requireRecordForOffice(PayrollList::findById((int)$listId)) === null) { return; }
 
         PayrollList::approve((int)$listId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_payroll_approved');
@@ -3382,6 +3443,8 @@ class OfficeController extends Controller
     public function hrPayrollPdf(string $listId): void
     {
         ModuleAccess::requireHrModule('payroll-lists');
+        if ($this->requireRecordForOffice(PayrollList::findById((int)$listId)) === null) { return; }
+
         $filepath = PayrollPdfService::generatePayrollList((int)$listId);
         if ($filepath && file_exists($filepath)) {
             header('Content-Type: application/pdf');
@@ -3396,6 +3459,13 @@ class OfficeController extends Controller
     public function hrPayslipPdf(string $entryId): void
     {
         ModuleAccess::requireHrModule('payroll-lists');
+        // Walk entry → payroll_list → client → office. PayrollEntry has employee_id but
+        // not client_id, so resolve via payroll_list.
+        $entry = PayrollEntry::findById((int)$entryId);
+        if (!$entry) { $this->redirect('/office/hr'); return; }
+        $list = PayrollList::findById((int)($entry['payroll_list_id'] ?? 0));
+        if ($this->requireRecordForOffice($list) === null) { return; }
+
         $filepath = PayrollPdfService::generatePayslip((int)$entryId);
         if ($filepath && file_exists($filepath)) {
             header('Content-Type: application/pdf');
@@ -3416,8 +3486,8 @@ class OfficeController extends Controller
     public function hrLeaves(string $clientId): void
     {
         ModuleAccess::requireHrModule('payroll-leave');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $leaves = EmployeeLeave::findByClient((int)$clientId);
         $this->render('office/hr_leaves', [
@@ -3430,8 +3500,8 @@ class OfficeController extends Controller
     public function hrLeaveCreate(string $clientId): void
     {
         ModuleAccess::requireHrModule('payroll-leave');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $employees = ClientEmployee::findByClient((int)$clientId);
         $contracts = EmployeeContract::findActiveByClient((int)$clientId);
@@ -3448,22 +3518,25 @@ class OfficeController extends Controller
     {
         ModuleAccess::requireHrModule('payroll-leave');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/leaves/create"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/leaves") === null) { return; }
+
+        $employeeId = (int)($_POST['employee_id'] ?? 0);
+        $contractId = (int)($_POST['contract_id'] ?? 0);
+        if (!$this->verifyEmployeeAndContract($employeeId, $contractId, (int)$clientId)) {
+            Session::flash('error', 'hr_leave_error');
+            $this->redirect("/office/hr/{$clientId}/leaves/create");
+            return;
+        }
 
         $leaveId = LeaveService::requestLeave(
-            (int)$clientId,
-            (int)($_POST['employee_id'] ?? 0),
-            (int)($_POST['contract_id'] ?? 0),
+            (int)$clientId, $employeeId, $contractId,
             $_POST['leave_type'] ?? 'wypoczynkowy',
             $_POST['start_date'] ?? '',
             $_POST['end_date'] ?? '',
             $this->sanitize($_POST['notes'] ?? '')
         );
 
-        if ($leaveId) {
-            Session::flash('success', 'hr_leave_created');
-        } else {
-            Session::flash('error', 'hr_leave_error');
-        }
+        Session::flash($leaveId ? 'success' : 'error', $leaveId ? 'hr_leave_created' : 'hr_leave_error');
         $this->redirect("/office/hr/{$clientId}/leaves");
     }
 
@@ -3472,8 +3545,8 @@ class OfficeController extends Controller
         ModuleAccess::requireHrModule('payroll-leave');
         if (!$this->validateCsrf()) { $this->redirect('/office/hr'); return; }
 
-        $leave = EmployeeLeave::findById((int)$leaveId);
-        if (!$leave) { $this->redirect('/office/hr'); return; }
+        $leave = $this->requireRecordForOffice(EmployeeLeave::findById((int)$leaveId));
+        if ($leave === null) { return; }
 
         LeaveService::approveLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_leave_approved');
@@ -3485,8 +3558,8 @@ class OfficeController extends Controller
         ModuleAccess::requireHrModule('payroll-leave');
         if (!$this->validateCsrf()) { $this->redirect('/office/hr'); return; }
 
-        $leave = EmployeeLeave::findById((int)$leaveId);
-        if (!$leave) { $this->redirect('/office/hr'); return; }
+        $leave = $this->requireRecordForOffice(EmployeeLeave::findById((int)$leaveId));
+        if ($leave === null) { return; }
 
         LeaveService::rejectLeave((int)$leaveId, Auth::currentUserType(), Auth::currentUserId());
         Session::flash('success', 'hr_leave_rejected');
@@ -3496,8 +3569,8 @@ class OfficeController extends Controller
     public function hrDeclarations(string $clientId): void
     {
         ModuleAccess::requireModule('hr');
-        $client = Client::findById((int)$clientId);
-        if (!$client) { $this->redirect('/office/hr'); return; }
+        $client = $this->requireClientForOffice($clientId);
+        if ($client === null) { return; }
 
         $declarations = PayrollDeclaration::findByClient((int)$clientId);
         $employees = ClientEmployee::findByClient((int)$clientId);
@@ -3508,15 +3581,34 @@ class OfficeController extends Controller
         ]);
     }
 
+    /** True iff (employeeId, contractId) form a valid (client_id, employee_id) pair in the DB. */
+    private function verifyEmployeeAndContract(int $employeeId, int $contractId, int $clientId): bool
+    {
+        if (!ClientEmployee::findByIdForClient($employeeId, $clientId)) {
+            return false;
+        }
+        $contract = \App\Core\Database::getInstance()->fetchOne(
+            "SELECT id FROM employee_contracts WHERE id = ? AND client_id = ? AND employee_id = ?",
+            [$contractId, $clientId, $employeeId]
+        );
+        return $contract !== null;
+    }
+
     public function hrDeclarationGenerate(string $clientId): void
     {
         ModuleAccess::requireModule('hr');
         if (!$this->validateCsrf()) { $this->redirect("/office/hr/{$clientId}/declarations"); return; }
+        if ($this->requireClientForOffice($clientId, "/office/hr/{$clientId}/declarations") === null) { return; }
 
         $type = $_POST['declaration_type'] ?? '';
         $year = (int)($_POST['year'] ?? date('Y'));
         $month = (int)($_POST['month'] ?? date('n'));
         $employeeId = !empty($_POST['employee_id']) ? (int)$_POST['employee_id'] : null;
+        if ($employeeId !== null && !ClientEmployee::findByIdForClient($employeeId, (int)$clientId)) {
+            Session::flash('error', 'hr_declaration_error');
+            $this->redirect("/office/hr/{$clientId}/declarations");
+            return;
+        }
 
         $id = match ($type) {
             'PIT-11' => $employeeId ? PayrollDeclarationService::generatePit11((int)$clientId, $employeeId, $year) : null,
@@ -3537,8 +3629,8 @@ class OfficeController extends Controller
     public function hrDeclarationDownload(string $declarationId): void
     {
         ModuleAccess::requireModule('hr');
-        $decl = PayrollDeclaration::findById((int)$declarationId);
-        if (!$decl || empty($decl['xml_content'])) {
+        $decl = $this->requireRecordForOffice(PayrollDeclaration::findById((int)$declarationId));
+        if ($decl === null || empty($decl['xml_content'])) {
             Session::flash('error', 'hr_declaration_not_found');
             $this->redirect('/office/hr');
             return;
