@@ -3334,7 +3334,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
             $this->redirect("/client/sales/{$id}/edit");
             return;
         }
-        IssuedInvoice::update($id, $data);
+        IssuedInvoice::update($id, $data, IssuedInvoice::FILLABLE);
 
         Session::flash('success', Language::get($action === 'issue' ? 'invoice_issued' : 'invoice_saved'));
         header('Location: /client/sales/' . $id);

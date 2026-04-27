@@ -181,7 +181,7 @@ class AdminController extends Controller
         $oldOffice = Office::findById((int) $id);
         $deactivatingOffice = ($oldOffice && $oldOffice['is_active'] && $data['is_active'] === 0);
 
-        Office::update((int) $id, $data);
+        Office::update((int) $id, $data, Office::adminAllowedFields());
 
         if ($deactivatingOffice) {
             $deactivatedCount = Office::deactivateClients((int) $id);
@@ -631,7 +631,7 @@ class AdminController extends Controller
             $data['password_changed_at'] = date('Y-m-d H:i:s');
         }
 
-        Client::update((int) $id, $data);
+        Client::update((int) $id, $data, Client::adminAllowedFields());
 
         if ($data['has_cost_centers']) {
             $ccNames = $_POST['cost_center_names'] ?? [];

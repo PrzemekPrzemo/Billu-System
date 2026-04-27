@@ -9,6 +9,27 @@ class Client
     /** Per-request memoization findById. */
     private static array $memo = [];
 
+    /** Default mass-assignment whitelist. Sensitive fields (password_hash, office_id, privacy_*, is_demo, last_login_at) require explicit $allowed override (see AdminController). */
+    public const FILLABLE = [
+        'nip', 'company_name', 'representative_name', 'address',
+        'email', 'report_email', 'phone', 'regon',
+        'has_cost_centers', 'ksef_api_token', 'ksef_enabled',
+        'language', 'is_active',
+        'mobile_app_enabled', 'file_storage_path',
+        'ip_whitelist', 'can_send_invoices',
+    ];
+
+    /** Admin-only fields. Combine with FILLABLE via Client::update($id, $data, Client::adminAllowedFields()). */
+    public const ADMIN_FILLABLE = [
+        'office_id', 'is_demo',
+        'password_hash', 'password_changed_at', 'force_password_change',
+    ];
+
+    public static function adminAllowedFields(): array
+    {
+        return array_merge(self::FILLABLE, self::ADMIN_FILLABLE);
+    }
+
     public static function findById(int $id): ?array
     {
         if (array_key_exists($id, self::$memo)) {
@@ -71,9 +92,14 @@ class Client
         return Database::getInstance()->insert('clients', $data);
     }
 
-    public static function update(int $id, array $data): int
+    public static function update(int $id, array $data, ?array $allowed = null): int
     {
-        $rows = Database::getInstance()->update('clients', $data, 'id = ?', [$id]);
+        $whitelist = $allowed ?? self::FILLABLE;
+        $filtered = array_intersect_key($data, array_flip($whitelist));
+        if (empty($filtered)) {
+            return 0;
+        }
+        $rows = Database::getInstance()->update('clients', $filtered, 'id = ?', [$id]);
         unset(self::$memo[$id]);
         return $rows;
     }

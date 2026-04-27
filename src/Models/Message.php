@@ -82,6 +82,24 @@ class Message
         );
     }
 
+    /** Ownership-checked accessor for client-scoped routes (message must reference the client). */
+    public static function findByIdForClient(int $id, int $clientId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT * FROM messages WHERE id = ? AND client_id = ?",
+            [$id, $clientId]
+        );
+    }
+
+    /** Ownership-checked accessor for office-scoped routes (joins clients to verify office_id). */
+    public static function findByIdForOffice(int $id, int $officeId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT m.* FROM messages m JOIN clients c ON m.client_id = c.id WHERE m.id = ? AND c.office_id = ?",
+            [$id, $officeId]
+        );
+    }
+
     /**
      * Get full thread: root message + all replies, ordered chronologically.
      */

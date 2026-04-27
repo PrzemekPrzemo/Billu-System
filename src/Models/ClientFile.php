@@ -44,6 +44,24 @@ class ClientFile
         );
     }
 
+    /** Ownership-checked accessor for client-scoped routes. */
+    public static function findByIdForClient(int $id, int $clientId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT * FROM client_files WHERE id = ? AND client_id = ?",
+            [$id, $clientId]
+        );
+    }
+
+    /** Ownership-checked accessor for office-scoped routes. */
+    public static function findByIdForOffice(int $id, int $officeId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT cf.* FROM client_files cf JOIN clients c ON cf.client_id = c.id WHERE cf.id = ? AND c.office_id = ?",
+            [$id, $officeId]
+        );
+    }
+
     /**
      * Find all files for a client with optional category filter, ordered by created_at DESC.
      */

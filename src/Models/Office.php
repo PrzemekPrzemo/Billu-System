@@ -9,6 +9,25 @@ class Office
     /** Per-request memoization findById. */
     private static array $memo = [];
 
+    /** Default mass-assignment whitelist. password_hash, is_demo, last_login_at need explicit override. */
+    public const FILLABLE = [
+        'name', 'nip', 'address', 'representative_name',
+        'email', 'phone', 'language', 'is_active',
+        'verification_deadline_day', 'auto_accept_on_deadline', 'notification_days_before',
+        'max_employees', 'max_clients',
+        'mobile_app_enabled', 'logo_path',
+    ];
+
+    public const ADMIN_FILLABLE = [
+        'is_demo',
+        'password_hash', 'password_changed_at',
+    ];
+
+    public static function adminAllowedFields(): array
+    {
+        return array_merge(self::FILLABLE, self::ADMIN_FILLABLE);
+    }
+
     public static function findById(int $id): ?array
     {
         if (array_key_exists($id, self::$memo)) {
@@ -54,9 +73,14 @@ class Office
         return Database::getInstance()->insert('offices', $data);
     }
 
-    public static function update(int $id, array $data): int
+    public static function update(int $id, array $data, ?array $allowed = null): int
     {
-        $rows = Database::getInstance()->update('offices', $data, 'id = ?', [$id]);
+        $whitelist = $allowed ?? self::FILLABLE;
+        $filtered = array_intersect_key($data, array_flip($whitelist));
+        if (empty($filtered)) {
+            return 0;
+        }
+        $rows = Database::getInstance()->update('offices', $filtered, 'id = ?', [$id]);
         unset(self::$memo[$id]);
         return $rows;
     }
