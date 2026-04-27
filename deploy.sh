@@ -286,7 +286,7 @@ if [[ ! -f composer.phar ]]; then
     echo -e "  ${GREEN}✓${NC} Composer zainstalowany"
 fi
 
-$PHP_BIN composer.phar install --no-dev --optimize-autoloader --no-interaction 2>&1 | tail -3
+$PHP_BIN composer.phar install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction 2>&1 | tail -3
 echo -e "  ${GREEN}✓${NC} Zależności PHP"
 
 # Uprawnienia
@@ -295,6 +295,15 @@ chown -R "${VHOST_USER}:${VHOST_USER}" "$HTTPDOCS" 2>/dev/null || true
 chmod -R 755 "$HTTPDOCS"
 chmod -R 775 "${HTTPDOCS}/storage" 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Uprawnienia (${VHOST_USER})"
+
+# Reload PHP-FPM aby OPcache (validate_timestamps=0) podchwycił zmiany
+if command -v systemctl >/dev/null 2>&1; then
+    FPM_UNIT=$(systemctl list-units --type=service --no-legend 2>/dev/null | awk '/php[0-9.]+-fpm\.service/ {print $1; exit}')
+    if [[ -n "$FPM_UNIT" ]]; then
+        systemctl reload "$FPM_UNIT" 2>/dev/null && \
+            echo -e "  ${GREEN}✓${NC} ${FPM_UNIT} reloaded (OPcache flush)"
+    fi
+fi
 
 # ── [6/6] Migracja bazy danych ───────────────────────
 echo ""

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Core\Cache;
 use App\Core\Session;
 use App\Core\Router;
 use App\Core\Language;
@@ -15,6 +16,9 @@ use App\Controllers\OfficeController;
 // Config
 $appConfig = require __DIR__ . '/../config/app.php';
 date_default_timezone_set($appConfig['timezone']);
+
+// Cache (Redis with no-op fallback)
+Cache::init(require __DIR__ . '/../config/cache.php');
 
 // Security headers (PHP fallback when mod_headers unavailable)
 header('X-Frame-Options: SAMEORIGIN');

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
+
 /**
  * Fetches exchange rates from NBP (National Bank of Poland) API.
  *
@@ -15,8 +17,6 @@ class NbpExchangeRateService
     private const API_URL = 'https://api.nbp.pl/api/exchangerates/rates/a';
     private const MAX_LOOKBACK_DAYS = 10;
     private const ALLOWED_CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'CZK', 'SEK', 'NOK', 'DKK'];
-
-    private static array $cache = [];
 
     /**
      * Get the NBP mid exchange rate for the given currency and reference date.
@@ -37,28 +37,27 @@ class NbpExchangeRateService
             return null;
         }
 
-        $cacheKey = $currency . '_' . $referenceDate;
-        if (isset(self::$cache[$cacheKey])) {
-            return self::$cache[$cacheKey];
-        }
+        $cache = Cache::getInstance();
+        $cacheKey = 'nbp:rate:' . $currency . ':' . $referenceDate;
 
-        // Start from the day before referenceDate (art. 31a VAT - previous business day)
-        $date = new \DateTime($referenceDate);
-        $date->modify('-1 day');
+        return $cache->remember($cacheKey, $cache->ttl('nbp'), function () use ($currency, $referenceDate) {
+            // Start from the day before referenceDate (art. 31a VAT - previous business day)
+            $date = new \DateTime($referenceDate);
+            $date->modify('-1 day');
 
-        for ($i = 0; $i < self::MAX_LOOKBACK_DAYS; $i++) {
-            $dateStr = $date->format('Y-m-d');
-            $result = self::fetchFromNbp($currency, $dateStr);
+            for ($i = 0; $i < self::MAX_LOOKBACK_DAYS; $i++) {
+                $dateStr = $date->format('Y-m-d');
+                $result = self::fetchFromNbp($currency, $dateStr);
 
-            if ($result !== null) {
-                self::$cache[$cacheKey] = $result;
-                return $result;
+                if ($result !== null) {
+                    return $result;
+                }
+
+                $date->modify('-1 day');
             }
 
-            $date->modify('-1 day');
-        }
-
-        return null;
+            return null;
+        });
     }
 
     /**

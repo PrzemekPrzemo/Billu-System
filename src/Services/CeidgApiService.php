@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
 use App\Models\Setting;
 
 /**
@@ -66,6 +67,13 @@ class CeidgApiService
             throw new \RuntimeException('CEIDG API nie jest skonfigurowane. Ustaw token API w Admin → Ustawienia → CEIDG API.');
         }
 
+        $cache = Cache::getInstance();
+        $cacheKey = 'ceidg:' . $this->env . ':' . $nip;
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
         // Search by NIP — v3 returns full data in search results
         $searchUrl = $this->baseUrl . '?' . http_build_query(['nip' => $nip]);
         $searchResult = $this->httpGet($searchUrl);
@@ -80,7 +88,11 @@ class CeidgApiService
             return null;
         }
 
-        return $this->parseCompanyData($firma, $nip);
+        $result = $this->parseCompanyData($firma, $nip);
+        if ($result !== null) {
+            $cache->set($cacheKey, $result, $cache->ttl('ceidg'));
+        }
+        return $result;
     }
 
     /**
