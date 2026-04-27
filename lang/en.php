@@ -1825,6 +1825,7 @@ return [
     'module_cat_system'        => 'System',
 
     // HR / Payroll
+    'hr_module'                => 'HR & Payroll',
     'hr_dashboard'             => 'HR Dashboard',
     'hr_employees'             => 'Employees',
     'hr_employee_list'         => 'Employee List',
