@@ -23,8 +23,20 @@ final class Asset
         if (self::$manifest === null) {
             self::$manifest = self::loadManifest();
         }
-        $resolved = self::$manifest[$logical] ?? $logical;
-        return '/assets/' . ltrim($resolved, '/');
+
+        // Manifest path already carries ?v=hash — return it as-is.
+        if (isset(self::$manifest[$logical])) {
+            return '/assets/' . ltrim(self::$manifest[$logical], '/');
+        }
+
+        // No bundle / no manifest: serve the raw file but append ?v=mtime so
+        // the browser doesn't keep year-old style.css from .htaccess
+        // Cache-Control: max-age=31536000.
+        $relative = ltrim($logical, '/');
+        $path = dirname(__DIR__, 2) . '/public/assets/' . $relative;
+        $mtime = is_file($path) ? filemtime($path) : 0;
+
+        return '/assets/' . $relative . ($mtime ? '?v=' . $mtime : '');
     }
 
     /** @return array<string,string> */
