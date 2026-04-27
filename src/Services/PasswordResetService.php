@@ -111,6 +111,9 @@ class PasswordResetService
             Office::updatePassword($reset['user_id'], $hash);
         }
 
+        // Reset path is "I forgot my password" — always invalidate trusted devices.
+        \App\Models\TrustedDevice::revokeAllForUser($reset['user_type'], (int) $reset['user_id']);
+
         // Mark token as used
         Database::getInstance()->update('password_resets', ['used' => 1], 'id = ?', [$reset['id']]);
 

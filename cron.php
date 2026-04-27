@@ -122,4 +122,9 @@ if (date('j') === '1') {
     }
 }
 
+// 13. Cleanup expired trusted-device tokens
+echo "Cleaning up expired trusted devices...\n";
+$removed = \App\Models\TrustedDevice::cleanupExpired();
+echo "  Removed: {$removed} row(s)\n";
+
 echo "[" . date('Y-m-d H:i:s') . "] Cron job completed.\n";

@@ -538,6 +538,8 @@ return [
     '2fa_code'                 => 'Verification code',
     '2fa_verify'               => 'Verify',
     '2fa_recovery_hint'        => 'You can also use a one-time recovery code.',
+    '2fa_trust_device'         => 'Remember this device',
+    '2fa_trust_device_hint'    => 'Skip the 2FA prompt on this browser for 5 days. Use only on your own device.',
     '2fa_code_required'        => 'Please enter the verification code',
     '2fa_invalid_code'         => 'Invalid verification code',
     '2fa_error'                => '2FA verification error',
