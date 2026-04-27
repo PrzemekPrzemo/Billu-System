@@ -15,6 +15,7 @@ use App\Api\Controllers\ProfileApiController;
 use App\Api\Controllers\CostCenterApiController;
 use App\Api\Controllers\NotificationApiController;
 use App\Api\Middleware\JwtMiddleware;
+use App\Core\Cache;
 use App\Models\Setting;
 
 class ApiKernel
@@ -23,6 +24,7 @@ class ApiKernel
 
     public function __construct()
     {
+        Cache::init(require dirname(__DIR__, 2) . '/config/cache.php');
         $this->router = new ApiRouter();
         $this->registerRoutes();
     }

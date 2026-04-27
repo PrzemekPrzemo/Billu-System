@@ -2,16 +2,18 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
 use App\Models\Setting;
 
 class WhiteListService
 {
-    private static array $cache = [];
-
     /**
      * Search entity by NIP — returns full data with all registered bank accounts.
      * Uses GET /api/search/nip/{nip}?date={YYYY-MM-DD}
      * More efficient than check endpoint — one request per NIP returns all accounts.
+     *
+     * Cached per (nip, date) — expires daily because the white list is "stan na dany dzień",
+     * so freshness within a single calendar day is acceptable for batch verification.
      */
     public static function searchByNip(string $nip): ?array
     {
@@ -20,47 +22,44 @@ class WhiteListService
             return null;
         }
 
-        if (isset(self::$cache[$nip])) {
-            return self::$cache[$nip];
-        }
-
-        $baseUrl = Setting::get('whitelist_api_url', 'https://wl-api.mf.gov.pl');
         $date = date('Y-m-d');
-        $url = rtrim($baseUrl, '/') . '/api/search/nip/' . urlencode($nip) . '?date=' . $date;
+        $cache = Cache::getInstance();
+        $cacheKey = 'whitelist:' . $nip . ':' . $date;
 
-        $response = self::httpGet($url);
-        if ($response === null) {
-            return null;
-        }
+        return $cache->remember($cacheKey, $cache->ttl('whitelist'), function () use ($nip, $date) {
+            $baseUrl = Setting::get('whitelist_api_url', 'https://wl-api.mf.gov.pl');
+            $url = rtrim($baseUrl, '/') . '/api/search/nip/' . urlencode($nip) . '?date=' . $date;
 
-        $data = json_decode($response, true);
-        if (empty($data['result']['subject'])) {
-            self::$cache[$nip] = null;
-            return null;
-        }
+            $response = self::httpGet($url);
+            if ($response === null) {
+                return null;
+            }
 
-        $subject = $data['result']['subject'];
+            $data = json_decode($response, true);
+            if (empty($data['result']['subject'])) {
+                return null;
+            }
 
-        // Normalize all account numbers for comparison
-        $accounts = [];
-        foreach ($subject['accountNumbers'] ?? [] as $acc) {
-            $accounts[] = self::normalizeAccount($acc);
-        }
+            $subject = $data['result']['subject'];
 
-        $result = [
-            'nip' => $subject['nip'] ?? $nip,
-            'name' => $subject['name'] ?? '',
-            'statusVat' => $subject['statusVat'] ?? '',
-            'accountNumbers' => $accounts,
-            'regon' => $subject['regon'] ?? '',
-            'krs' => $subject['krs'] ?? '',
-            'residenceAddress' => $subject['residenceAddress'] ?? '',
-            'workingAddress' => $subject['workingAddress'] ?? '',
-            'requestId' => $data['requestId'] ?? '',
-        ];
+            // Normalize all account numbers for comparison
+            $accounts = [];
+            foreach ($subject['accountNumbers'] ?? [] as $acc) {
+                $accounts[] = self::normalizeAccount($acc);
+            }
 
-        self::$cache[$nip] = $result;
-        return $result;
+            return [
+                'nip' => $subject['nip'] ?? $nip,
+                'name' => $subject['name'] ?? '',
+                'statusVat' => $subject['statusVat'] ?? '',
+                'accountNumbers' => $accounts,
+                'regon' => $subject['regon'] ?? '',
+                'krs' => $subject['krs'] ?? '',
+                'residenceAddress' => $subject['residenceAddress'] ?? '',
+                'workingAddress' => $subject['workingAddress'] ?? '',
+                'requestId' => $data['requestId'] ?? '',
+            ];
+        });
     }
 
     /**

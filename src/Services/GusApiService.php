@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
 use App\Models\Setting;
 
 /**
@@ -64,8 +65,19 @@ class GusApiService
             throw new \RuntimeException('GUS API nie jest skonfigurowane. Ustaw klucz API w Admin → Ustawienia → GUS API.');
         }
 
+        $cache = Cache::getInstance();
+        $cacheKey = 'gus:' . $this->env . ':' . $nip;
+        $cached = $cache->get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
         try {
-            return $this->findByNipCurl($nip);
+            $result = $this->findByNipCurl($nip);
+            if ($result !== null) {
+                $cache->set($cacheKey, $result, $cache->ttl('gus'));
+            }
+            return $result;
         } catch (\RuntimeException $e) {
             throw $e;
         } catch (\Exception $e) {

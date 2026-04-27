@@ -218,7 +218,7 @@ if [[ ! -f composer.phar ]]; then
     curl -sS https://getcomposer.org/installer | $PHP_BIN -- --quiet 2>/dev/null
 fi
 
-$PHP_BIN composer.phar install --no-dev --optimize-autoloader --no-interaction 2>&1 | tail -3
+$PHP_BIN composer.phar install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction 2>&1 | tail -3
 echo -e "  ${GREEN}✓${NC} Composer install"
 
 # Uprawnienia
@@ -226,6 +226,15 @@ VHOST_USER=$(stat -c '%U' "$HTTPDOCS" 2>/dev/null || echo "www-data")
 chown -R "${VHOST_USER}:${VHOST_USER}" "$HTTPDOCS" 2>/dev/null || true
 chmod -R 755 "$HTTPDOCS"
 chmod -R 775 "${HTTPDOCS}/storage" 2>/dev/null || true
+
+# Reload PHP-FPM (OPcache flush przy validate_timestamps=0)
+if command -v systemctl >/dev/null 2>&1; then
+    FPM_UNIT=$(systemctl list-units --type=service --no-legend 2>/dev/null | awk '/php[0-9.]+-fpm\.service/ {print $1; exit}')
+    if [[ -n "$FPM_UNIT" ]]; then
+        systemctl reload "$FPM_UNIT" 2>/dev/null && \
+            echo -e "  ${GREEN}✓${NC} ${FPM_UNIT} reloaded"
+    fi
+fi
 
 echo -e "  ${GREEN}✓${NC} Uprawnienia (${VHOST_USER})"
 

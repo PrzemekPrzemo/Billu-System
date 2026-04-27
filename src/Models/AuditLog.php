@@ -70,8 +70,9 @@ class AuditLog
         $params = [];
 
         if ($action) {
+            // prefix-LIKE wykorzystuje idx_audit_action_created (left-anchored)
             $sql .= " AND action LIKE ?";
-            $params[] = "%{$action}%";
+            $params[] = $action . '%';
         }
         if ($dateFrom) {
             $sql .= " AND created_at >= ?";
@@ -97,8 +98,9 @@ class AuditLog
         $params = [];
 
         if ($action) {
+            // prefix-LIKE wykorzystuje idx_audit_action_created (left-anchored)
             $sql .= " AND action LIKE ?";
-            $params[] = "%{$action}%";
+            $params[] = $action . '%';
         }
         if ($dateFrom) {
             $sql .= " AND created_at >= ?";
@@ -122,8 +124,9 @@ class AuditLog
         $params = [];
 
         if ($action) {
+            // prefix-LIKE wykorzystuje idx_audit_action_created (left-anchored)
             $sql .= " AND action LIKE ?";
-            $params[] = "%{$action}%";
+            $params[] = $action . '%';
         }
         if ($dateFrom) {
             $sql .= " AND created_at >= ?";
