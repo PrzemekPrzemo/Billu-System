@@ -63,13 +63,17 @@
     <div class="section" style="margin-top:16px; padding:16px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px;">
         <h3 style="margin-top:0;"><?= $lang('admin_reset_password') ?></h3>
         <p class="text-muted" style="font-size:13px; margin-bottom:12px;"><?= $lang('admin_reset_password_hint') ?></p>
-        <form method="POST" action="/admin/offices/<?= $office['id'] ?>/reset-password" style="display:flex; gap:8px; align-items:flex-end;">
-            <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+        <div style="display:flex; gap:8px; align-items:flex-end;">
             <div class="form-group" style="margin:0; flex:1;">
-                <input type="password" name="new_password" class="form-input" required minlength="12" placeholder="<?= $lang('new_password') ?>">
+                <input type="password" name="new_password" class="form-input" minlength="12" placeholder="<?= $lang('new_password') ?>">
             </div>
-            <button type="submit" class="btn btn-warning" data-confirm="<?= $lang('reset_password_confirm') ?>"><?= $lang('reset_password_button') ?></button>
-        </form>
+            <button type="submit"
+                    formaction="/admin/offices/<?= $office['id'] ?>/reset-password"
+                    formmethod="POST"
+                    formnovalidate
+                    class="btn btn-warning"
+                    data-confirm="<?= $lang('reset_password_confirm') ?>"><?= $lang('reset_password_button') ?></button>
+        </div>
     </div>
 
     <div class="form-row">
