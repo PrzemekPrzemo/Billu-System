@@ -510,4 +510,91 @@ class CronService
         \App\Models\DuplicateCandidate::deleteOld(365);
         return $result;
     }
+
+    /**
+     * Warmup NBP exchange rates cache for active currencies.
+     * Pobiera kursy "na jutro" → wymusza GET dla ostatniego dnia roboczego
+     * i wstawia do Redis. Pierwsze logowanie użytkownika rano nie czeka na NBP.
+     */
+    public static function warmupNbpRates(): array
+    {
+        $currencies = ['EUR', 'USD', 'GBP', 'CHF', 'CZK'];
+        $cached = 0;
+        $errors = [];
+        foreach ($currencies as $code) {
+            try {
+                $rate = NbpExchangeRateService::getLatestRates([$code]);
+                if (!empty($rate)) {
+                    $cached++;
+                }
+            } catch (\Throwable $e) {
+                $errors[] = $code . ': ' . $e->getMessage();
+            }
+        }
+        return ['cached' => $cached, 'errors' => $errors];
+    }
+
+    /**
+     * Archive audit_log entries older than $monthsToKeep into JSONL.gz file
+     * under storage/archive/audit_log/, then delete archived rows.
+     * Uruchamiane raz w miesiącu (1. dnia miesiąca).
+     */
+    public static function archiveAuditLog(int $monthsToKeep = 24): array
+    {
+        $result = ['archived' => 0, 'deleted' => 0, 'file' => null, 'errors' => []];
+
+        $cutoff = date('Y-m-d 00:00:00', strtotime("-{$monthsToKeep} months"));
+        $db = \App\Core\Database::getInstance();
+
+        $rows = $db->fetchAll(
+            "SELECT * FROM audit_log WHERE created_at < ? ORDER BY id",
+            [$cutoff]
+        );
+
+        if (empty($rows)) {
+            return $result;
+        }
+
+        $archiveDir = dirname(__DIR__, 2) . '/storage/archive/audit_log';
+        if (!is_dir($archiveDir) && !@mkdir($archiveDir, 0775, true) && !is_dir($archiveDir)) {
+            $result['errors'][] = 'cannot_create_archive_dir';
+            return $result;
+        }
+
+        $file = $archiveDir . '/audit_log_' . date('Ymd_His') . '.jsonl.gz';
+        $gz = @gzopen($file, 'wb9');
+        if ($gz === false) {
+            $result['errors'][] = 'cannot_open_archive_file';
+            return $result;
+        }
+
+        $minId = PHP_INT_MAX;
+        $maxId = 0;
+        foreach ($rows as $row) {
+            $line = json_encode($row, JSON_UNESCAPED_UNICODE) . "\n";
+            if ($line === false || gzwrite($gz, $line) === false) {
+                $result['errors'][] = 'write_failed_at_id_' . ($row['id'] ?? '?');
+                gzclose($gz);
+                @unlink($file);
+                return $result;
+            }
+            $id = (int)$row['id'];
+            if ($id < $minId) $minId = $id;
+            if ($id > $maxId) $maxId = $id;
+            $result['archived']++;
+        }
+        gzclose($gz);
+
+        // Usuwamy zarchiwizowane wiersze osobnym DELETE z zakresem ID
+        // (bezpieczniejsze od WHERE created_at < cutoff bo gwarantuje, że nic
+        // nie zostanie zostawione lub usunięte podwójnie).
+        $stmt = $db->query(
+            "DELETE FROM audit_log WHERE id BETWEEN ? AND ?",
+            [$minId, $maxId]
+        );
+        $result['deleted'] = $stmt->rowCount();
+        $result['file'] = $file;
+
+        return $result;
+    }
 }
