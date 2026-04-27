@@ -39,7 +39,15 @@ guard them.
    before reading or writing. The canonical accessors are
    `Model::findByIdForClient($id, $clientId)` and
    `Model::findByIdForOffice($id, $officeId)` — see
-   `docs/multitenant.md`.
+   `docs/multitenant.md`. For office HR endpoints two centralized gates
+   in `OfficeController` apply this consistently:
+   - `requireClientForOffice($clientId)` — verifies the client belongs
+     to the session office AND (for office-employees) that the client
+     is in the assignment filter from `OfficeEmployee::getAssignedClientIds`.
+   - `requireRecordForOffice($record)` — same check applied to the
+     record's `client_id`, used for endpoints that take a record id
+     instead of a client id (payroll list, leave, contract,
+     declaration, payslip via list join).
 2. **Mass assignment is allow-listed.** `Client::FILLABLE`,
    `Office::FILLABLE`, `IssuedInvoice::FILLABLE`,
    `ClientEmployee::FILLABLE` define which fields a form submission may

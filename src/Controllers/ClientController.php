@@ -5793,22 +5793,35 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
         ModuleAccess::requireHrModule('payroll-leave');
         if (!$this->validateCsrf()) { $this->redirect('/client/hr/leaves'); return; }
 
-        $clientId = (int)Session::get('client_id');
+        $clientId   = (int)Session::get('client_id');
+        $employeeId = (int)($_POST['employee_id'] ?? 0);
+        $contractId = (int)($_POST['contract_id'] ?? 0);
+
+        // Verify employee + contract both belong to this client — never trust POST IDs.
+        if (!ClientEmployee::findByIdForClient($employeeId, $clientId)) {
+            Session::flash('error', 'hr_leave_error');
+            $this->redirect('/client/hr/leaves');
+            return;
+        }
+        $contract = \App\Core\Database::getInstance()->fetchOne(
+            "SELECT id FROM employee_contracts WHERE id = ? AND client_id = ? AND employee_id = ?",
+            [$contractId, $clientId, $employeeId]
+        );
+        if (!$contract) {
+            Session::flash('error', 'hr_leave_error');
+            $this->redirect('/client/hr/leaves');
+            return;
+        }
+
         $leaveId = LeaveService::requestLeave(
-            $clientId,
-            (int)($_POST['employee_id'] ?? 0),
-            (int)($_POST['contract_id'] ?? 0),
+            $clientId, $employeeId, $contractId,
             $_POST['leave_type'] ?? 'wypoczynkowy',
             $_POST['start_date'] ?? '',
             $_POST['end_date'] ?? '',
             $this->sanitize($_POST['notes'] ?? '')
         );
 
-        if ($leaveId) {
-            Session::flash('success', 'hr_leave_created');
-        } else {
-            Session::flash('error', 'hr_leave_error');
-        }
+        Session::flash($leaveId ? 'success' : 'error', $leaveId ? 'hr_leave_created' : 'hr_leave_error');
         $this->redirect('/client/hr/leaves');
     }
 
