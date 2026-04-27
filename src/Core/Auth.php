@@ -653,13 +653,16 @@ class Auth
                 return false;
             }
 
-            if ($userType === 'admin') {
-                $required = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required_admin'");
-                return $required && $required['setting_value'] === '1';
+            // Per-type setting (2fa_required_admin / _client / _office) takes precedence.
+            $perTypeKey = '2fa_required_' . $userType;
+            $perType = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", [$perTypeKey]);
+            if ($perType && $perType['setting_value'] === '1') {
+                return true;
             }
 
-            $required = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required'");
-            return $required && $required['setting_value'] === '1';
+            // Fallback: global enforcement.
+            $global = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required'");
+            return $global && $global['setting_value'] === '1';
         } catch (\Exception $e) {
             return false;
         }
