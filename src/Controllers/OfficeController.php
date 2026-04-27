@@ -1363,7 +1363,7 @@ class OfficeController extends Controller
         // Send email to client
         try {
             if (!empty($client['email'])) {
-                $mail = \App\Services\MailService::createSimpleMail(
+                \App\Services\MailQueueService::enqueue(
                     $client['email'],
                     'Nowe zadanie od biura księgowego',
                     "<p>Utworzono nowe zadanie: <strong>" . htmlspecialchars($title) . "</strong></p>"
@@ -1374,7 +1374,7 @@ class OfficeController extends Controller
                 );
             }
         } catch (\Throwable $e) {
-            error_log("Task email failed: " . $e->getMessage());
+            error_log("Task email enqueue failed: " . $e->getMessage());
         }
 
         Session::flash('success', 'task_created');
@@ -1899,7 +1899,7 @@ class OfficeController extends Controller
                         $body = "<p><strong>{$senderName}</strong> wysłał(a) wiadomość.</p>"
                             . "<p>Temat: <strong>" . htmlspecialchars($subject) . "</strong></p>"
                             . "<p><a href=\"{$link}\">Przejdź do wiadomości</a></p>";
-                        \App\Services\MailService::createSimpleMail($r['email'], $emailSubject, $body, $r['user_type'] === 'client' ? $clientId : null);
+                        \App\Services\MailQueueService::enqueue($r['email'], $emailSubject, $body, $r['user_type'] === 'client' ? $clientId : null);
                     }
                 } catch (\Throwable $e) {
                     error_log("Message email failed for {$r['email']}: " . $e->getMessage());

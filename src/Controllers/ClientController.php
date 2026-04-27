@@ -5233,7 +5233,7 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
                         $body = "<p><strong>{$clientName}</strong> wysłał(a) wiadomość.</p>"
                             . "<p>Temat: <strong>" . htmlspecialchars($subject) . "</strong></p>"
                             . "<p><a href=\"/office/messages\">Przejdź do wiadomości</a></p>";
-                        MailService::createSimpleMail($r['email'], $emailSubject, $body);
+                        \App\Services\MailQueueService::enqueue($r['email'], $emailSubject, $body);
                     }
                 } catch (\Throwable $e) {
                     error_log("Message email failed for {$r['email']}: " . $e->getMessage());
