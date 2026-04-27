@@ -116,32 +116,133 @@ class AuditLog
     }
 
     /**
-     * Paginated search.
+     * Paginated search z deferred join: inner query wybiera tylko ID
+     * korzystając z covering index (action, created_at, id) - tania nawet
+     * przy dużym OFFSET. Outer query pobiera pełne wiersze (z dużą
+     * kolumną details) tylko dla N wynikowych wierszy po PK.
      */
     public static function searchPaginated(?string $action, ?string $dateFrom, ?string $dateTo, int $offset, int $limit): array
     {
-        $sql = "SELECT * FROM audit_log WHERE 1=1";
+        $where = " WHERE 1=1";
         $params = [];
 
         if ($action) {
             // prefix-LIKE wykorzystuje idx_audit_action_created (left-anchored)
-            $sql .= " AND action LIKE ?";
+            $where .= " AND action LIKE ?";
             $params[] = $action . '%';
         }
         if ($dateFrom) {
-            $sql .= " AND created_at >= ?";
+            $where .= " AND created_at >= ?";
             $params[] = $dateFrom . ' 00:00:00';
         }
         if ($dateTo) {
-            $sql .= " AND created_at <= ?";
+            $where .= " AND created_at <= ?";
             $params[] = $dateTo . ' 23:59:59';
         }
 
-        $sql .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
         $params[] = $limit;
         $params[] = $offset;
 
+        $sql = "SELECT a.* FROM audit_log a
+                JOIN (
+                    SELECT id FROM audit_log{$where}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ? OFFSET ?
+                ) sub ON sub.id = a.id
+                ORDER BY a.created_at DESC, a.id DESC";
+
         return Database::getInstance()->fetchAll($sql, $params);
+    }
+
+    /**
+     * Keyset (cursor-based) pagination - O(LIMIT) niezależnie od głębokości.
+     * Cursor to ostatnia widziana para (created_at, id) z poprzedniej strony.
+     * Pierwsze wywołanie: $cursor = null. Kolejne: przekaż wartości z ostatniego
+     * wiersza poprzedniej odpowiedzi.
+     *
+     * Zwraca ['rows' => [...], 'next_cursor' => ['created_at' => ..., 'id' => ...]|null].
+     *
+     * @param array{action?:?string,date_from?:?string,date_to?:?string} $filters
+     * @param array{created_at:string,id:int}|null $cursor
+     */
+    public static function searchKeyset(array $filters, ?array $cursor, int $limit = 50): array
+    {
+        $where = " WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['action'])) {
+            $where .= " AND action LIKE ?";
+            $params[] = $filters['action'] . '%';
+        }
+        if (!empty($filters['date_from'])) {
+            $where .= " AND created_at >= ?";
+            $params[] = $filters['date_from'] . ' 00:00:00';
+        }
+        if (!empty($filters['date_to'])) {
+            $where .= " AND created_at <= ?";
+            $params[] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        // Cursor: weź wiersze STARSZE niż ostatnio widziany.
+        // Tie-break po id zapewnia deterministyczność przy identycznym created_at.
+        if ($cursor !== null && isset($cursor['created_at'], $cursor['id'])) {
+            $where .= " AND (created_at < ? OR (created_at = ? AND id < ?))";
+            $params[] = $cursor['created_at'];
+            $params[] = $cursor['created_at'];
+            $params[] = (int)$cursor['id'];
+        }
+
+        // +1 wiersz żeby wykryć czy jest następna strona
+        $params[] = $limit + 1;
+
+        $rows = Database::getInstance()->fetchAll(
+            "SELECT * FROM audit_log{$where} ORDER BY created_at DESC, id DESC LIMIT ?",
+            $params
+        );
+
+        $hasMore = count($rows) > $limit;
+        if ($hasMore) {
+            array_pop($rows);
+        }
+        $nextCursor = null;
+        if ($hasMore && !empty($rows)) {
+            $last = end($rows);
+            $nextCursor = [
+                'created_at' => $last['created_at'],
+                'id'         => (int)$last['id'],
+            ];
+        }
+
+        return ['rows' => $rows, 'next_cursor' => $nextCursor];
+    }
+
+    /**
+     * Encode keyset cursor to URL-safe string. Decoder w decodeCursor().
+     */
+    public static function encodeCursor(?array $cursor): ?string
+    {
+        if ($cursor === null) {
+            return null;
+        }
+        return rtrim(strtr(base64_encode(json_encode($cursor)), '+/', '-_'), '=');
+    }
+
+    public static function decodeCursor(?string $encoded): ?array
+    {
+        if ($encoded === null || $encoded === '') {
+            return null;
+        }
+        $padded = strtr($encoded, '-_', '+/');
+        $padded .= str_repeat('=', (4 - strlen($padded) % 4) % 4);
+        $raw = base64_decode($padded, true);
+        if ($raw === false) {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || !isset($decoded['created_at'], $decoded['id'])) {
+            return null;
+        }
+        return $decoded;
     }
 
     public static function findLast(string $action): ?array
