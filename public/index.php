@@ -77,6 +77,17 @@ $router->post('/employee/login', [AuthController::class, 'clientEmployeeLogin'])
 $router->get('/employee/logout', [AuthController::class, 'clientEmployeeLogout']);
 $router->get('/employee/activate', [AuthController::class, 'employeeActivateForm']);
 $router->post('/employee/activate', [AuthController::class, 'employeeActivate']);
+
+// Client-employee self-service panel
+$router->get('/employee', [\App\Controllers\EmployeeController::class, 'dashboard']);
+$router->get('/employee/profile', [\App\Controllers\EmployeeController::class, 'profile']);
+$router->get('/employee/change-password', [\App\Controllers\EmployeeController::class, 'changePasswordForm']);
+$router->post('/employee/change-password', [\App\Controllers\EmployeeController::class, 'changePassword']);
+$router->get('/employee/payslips', [\App\Controllers\EmployeeController::class, 'payslips']);
+$router->get('/employee/payslips/{id}/pdf', [\App\Controllers\EmployeeController::class, 'payslipPdf']);
+$router->get('/employee/leaves', [\App\Controllers\EmployeeController::class, 'leaves']);
+$router->get('/employee/leaves/request', [\App\Controllers\EmployeeController::class, 'leaveRequestForm']);
+$router->post('/employee/leaves/request', [\App\Controllers\EmployeeController::class, 'leaveRequest']);
 $router->post('/two-factor-disable', [AuthController::class, 'twoFactorDisable']);
 
 // ── Admin Routes (/admin) ──────────────────────────
