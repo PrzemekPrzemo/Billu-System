@@ -58,6 +58,34 @@
             <div style="display:flex;align-items:center;gap:8px;">
                 <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-open')" aria-label="Menu">&#9776;</button>
             </div>
+
+            <?php
+            // NBP rates strip — pulled lazily; the service caches results in Redis (TTL 12 h)
+            // so this is a cheap lookup on every authenticated page render.
+            $topbarRates = [];
+            $topbarRatesDate = null;
+            try {
+                $topbarRates = \App\Services\NbpExchangeRateService::getLatestRates(['EUR', 'USD', 'GBP']);
+                foreach ($topbarRates as $r) {
+                    if (!empty($r['date'])) { $topbarRatesDate = $r['date']; break; }
+                }
+            } catch (\Throwable) { /* fail-silent — strip just hides */ }
+            ?>
+            <?php if (!empty($topbarRates)): ?>
+            <div class="nav-topbar-rates" style="display:flex;align-items:center;gap:14px;flex:1;justify-content:center;font-size:13px;color:var(--gray-600);overflow:hidden;white-space:nowrap;">
+                <span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    <?= $lang('nbp_exchange_rates') ?>:
+                </span>
+                <?php if ($topbarRatesDate): ?>
+                    <span style="color:var(--gray-400);"><?= htmlspecialchars($topbarRatesDate) ?></span>
+                <?php endif; ?>
+                <?php foreach ($topbarRates as $cur => $info): ?>
+                    <span><strong><?= $cur ?></strong> <?= number_format((float)$info['rate'], 4, ',', '') ?></span>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <div class="nav-topbar-right">
                 <?php
                     $notifUrl = $isAdmin ? '/admin/notifications' : (($isOffice || $isEmployee) ? '/office/notifications' : '/client/notifications');
