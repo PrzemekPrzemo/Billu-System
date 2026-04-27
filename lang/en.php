@@ -1810,6 +1810,7 @@ return [
     'modules_management'       => 'Module Management',
     'modules_for_office'       => 'Modules for office',
     'modules_saved'            => 'Module configuration has been saved.',
+    'modules_save_hint'        => 'Modules are saved together with the office when you click "Save" at the bottom of the form. Required dependencies are added automatically.',
     'module_enabled'           => 'Enabled',
     'module_disabled'          => 'Disabled',
     'module_not_available'     => 'This module is not available for your office.',
