@@ -10,6 +10,19 @@ use App\Models\ClientSmtpConfig;
 
 class MailService
 {
+    /** Mask an email for safe inclusion in error logs (a***@b.com). */
+    private static function maskEmail(string $email): string
+    {
+        $at = strrpos($email, '@');
+        if ($at === false || $at < 1) {
+            return '***';
+        }
+        $local = substr($email, 0, $at);
+        $domain = substr($email, $at + 1);
+        $maskedLocal = $local[0] . str_repeat('*', max(1, strlen($local) - 1));
+        return $maskedLocal . '@' . $domain;
+    }
+
     /**
      * Create mailer using system SMTP settings (DB first, config/mail.php fallback).
      */
@@ -144,7 +157,7 @@ class MailService
 
             return true;
         } catch (\Throwable $e) {
-            error_log("Invoice email error to {$toEmail}: " . $e->getMessage());
+            error_log("Invoice email error to " . self::maskEmail($toEmail) . ": " . $e->getMessage());
             return false;
         }
     }
@@ -592,7 +605,7 @@ class MailService
             $mail->send();
             return true;
         } catch (Exception $e) {
-            error_log("Simple mail error to {$to}: " . $e->getMessage());
+            error_log("Simple mail error to " . self::maskEmail($to) . ": " . $e->getMessage());
             return false;
         }
     }

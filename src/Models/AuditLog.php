@@ -7,6 +7,14 @@ use App\Core\Session;
 
 class AuditLog
 {
+    /** Field names whose values must never be persisted to audit_log in plaintext. */
+    private const REDACTED_KEYS = [
+        'password', 'password_hash', 'password_changed_at',
+        'totp_secret', 'two_factor_secret', 'recovery_codes',
+        'smtp_password', 'ksef_token', 'ksef_api_token',
+        'api_key', 'api_token', 'jwt_secret',
+    ];
+
     public static function log(
         string $userType,
         int $userId,
@@ -25,8 +33,8 @@ class AuditLog
                 'entity_type'     => $entityType,
                 'entity_id'       => $entityId,
                 'details'         => $details,
-                'old_values'      => $oldValues ? json_encode($oldValues, JSON_UNESCAPED_UNICODE) : null,
-                'new_values'      => $newValues ? json_encode($newValues, JSON_UNESCAPED_UNICODE) : null,
+                'old_values'      => $oldValues ? json_encode(self::redact($oldValues), JSON_UNESCAPED_UNICODE) : null,
+                'new_values'      => $newValues ? json_encode(self::redact($newValues), JSON_UNESCAPED_UNICODE) : null,
                 'ip_address'      => $_SERVER['REMOTE_ADDR'] ?? null,
                 'user_agent'      => $_SERVER['HTTP_USER_AGENT'] ?? null,
                 'impersonated_by' => Session::get('impersonator_id'),
@@ -34,6 +42,21 @@ class AuditLog
         } catch (\Exception $e) {
             error_log("AuditLog error: " . $e->getMessage());
         }
+    }
+
+    /** Replace values of sensitive keys with [REDACTED]. Recurses into nested arrays. */
+    private static function redact(array $values): array
+    {
+        foreach ($values as $key => $value) {
+            if (is_string($key) && in_array(strtolower($key), self::REDACTED_KEYS, true)) {
+                $values[$key] = '[REDACTED]';
+                continue;
+            }
+            if (is_array($value)) {
+                $values[$key] = self::redact($value);
+            }
+        }
+        return $values;
     }
 
     public static function getRecent(int $limit = 50, ?string $entityType = null, ?int $entityId = null): array
