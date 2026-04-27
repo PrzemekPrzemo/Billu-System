@@ -1,22 +1,5 @@
 <h1><?= $lang('welcome') ?>, <?= htmlspecialchars(\App\Core\Session::get('office_name')) ?></h1>
 
-<?php if (!empty($exchangeRates)): ?>
-<div class="form-card" style="padding:10px 16px; margin-bottom:16px;">
-    <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; font-size:14px;">
-        <span style="font-weight:600; color:var(--gray-500); display:inline-flex; align-items:center; gap:6px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-            <?= $lang('nbp_exchange_rates') ?>:
-        </span>
-        <?php foreach ($exchangeRates as $cur => $info): ?>
-        <span>
-            <strong><?= $cur ?></strong> = <?= number_format($info['rate'], 4, ',', '') ?> PLN
-            <span style="color:var(--gray-400); font-size:12px;">(<?= htmlspecialchars($info['date']) ?>)</span>
-        </span>
-        <?php endforeach; ?>
-    </div>
-</div>
-<?php endif; ?>
-
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-icon" style="background:#dbeafe; color:#2563eb;">
