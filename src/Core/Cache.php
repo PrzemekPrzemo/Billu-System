@@ -116,6 +116,12 @@ final class Cache
      * Zwraca wartość z cache lub uruchamia $producer i zapisuje wynik.
      * Wynik jest cachowany TYLKO jeśli nie jest null - chroni to przed
      * trwałym zapamiętaniem pustej odpowiedzi przy chwilowych awariach API.
+     *
+     * Cache stampede protection: gdy klucz wygaśnie i wiele requestów
+     * uderzy jednocześnie, tylko pierwszy odbudowuje cache (zdobywa lock
+     * `key:lock` na 5s przez SET NX EX). Pozostałe czekają max 1s na
+     * świeżą wartość; jeśli się nie pojawi, fallback do bezpośredniego
+     * uruchomienia producera (degradacja, nie awaria).
      */
     public function remember(string $key, int $ttl, callable $producer): mixed
     {
@@ -123,6 +129,43 @@ final class Cache
         if ($hit !== null) {
             return $hit;
         }
+
+        if ($this->driver === 'redis' && $this->redis !== null) {
+            $lockKey = $this->prefix . $key . ':lock';
+            try {
+                $acquired = $this->redis->set($lockKey, '1', 'EX', 5, 'NX');
+                if (!$acquired) {
+                    // Inny proces odbudowuje cache - krótki polling.
+                    for ($i = 0; $i < 10; $i++) {
+                        usleep(100000); // 100 ms
+                        $hit = $this->get($key);
+                        if ($hit !== null) {
+                            return $hit;
+                        }
+                    }
+                    // Timeout - degradujemy do bezpośredniego wywołania.
+                    return $producer();
+                }
+            } catch (Throwable) {
+                // Lock failed - degradacja do zwykłego flow bez stampede protection.
+            }
+
+            try {
+                $value = $producer();
+                if ($value !== null) {
+                    $this->set($key, $value, $ttl);
+                }
+                return $value;
+            } finally {
+                try {
+                    $this->redis->del([$lockKey]);
+                } catch (Throwable) {
+                    // ignore
+                }
+            }
+        }
+
+        // Driver null lub błąd - zwykły flow.
         $value = $producer();
         if ($value !== null) {
             $this->set($key, $value, $ttl);

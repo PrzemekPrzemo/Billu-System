@@ -6,13 +6,21 @@ use App\Core\Database;
 
 class Setting
 {
+    /** Per-request memoization. Klucz=setting_key, wartość=setting_value lub false dla "brak w DB". */
+    private static array $memo = [];
+
     public static function get(string $key, string $default = ''): string
     {
+        if (array_key_exists($key, self::$memo)) {
+            return self::$memo[$key] === false ? $default : self::$memo[$key];
+        }
         $result = Database::getInstance()->fetchOne(
             "SELECT setting_value FROM settings WHERE setting_key = ?",
             [$key]
         );
-        return $result ? $result['setting_value'] : $default;
+        $value = $result ? (string)$result['setting_value'] : false;
+        self::$memo[$key] = $value;
+        return $value === false ? $default : $value;
     }
 
     public static function set(string $key, string $value): void
@@ -35,6 +43,7 @@ class Setting
                 'setting_value' => $value,
             ]);
         }
+        self::$memo[$key] = $value;
     }
 
     public static function getAll(): array
