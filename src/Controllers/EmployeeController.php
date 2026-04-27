@@ -83,6 +83,8 @@ class EmployeeController extends Controller
         }
 
         ClientEmployee::updatePassword($employeeId, Auth::hashPassword($new));
+        \App\Models\TrustedDevice::revokeAllForUser('client_employee', $employeeId);
+        Auth::clearTrustedDeviceCookie();
         AuditLog::log('client_employee', $employeeId, 'password_changed',
             'Self-service password change', 'client_employee', $employeeId);
         Session::flash('success', 'password_changed');

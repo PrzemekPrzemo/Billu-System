@@ -234,6 +234,8 @@ class AuthController extends Controller
                 return;
             }
             Client::updatePassword($clientId, Auth::hashPassword($newPassword));
+            \App\Models\TrustedDevice::revokeAllForUser('client', (int) $clientId);
+            Auth::clearTrustedDeviceCookie();
             Session::remove('force_password_change');
             AuditLog::log('client', $clientId, 'password_changed', 'Client changed password', 'client', $clientId);
         } elseif (Auth::isOffice()) {
@@ -245,6 +247,8 @@ class AuthController extends Controller
                 return;
             }
             Office::updatePassword($officeId, Auth::hashPassword($newPassword));
+            \App\Models\TrustedDevice::revokeAllForUser('office', (int) $officeId);
+            Auth::clearTrustedDeviceCookie();
             Session::remove('force_password_change');
             AuditLog::log('office', $officeId, 'password_changed', 'Office changed password', 'office', $officeId);
         } elseif (Auth::isEmployee()) {
@@ -256,6 +260,8 @@ class AuthController extends Controller
                 return;
             }
             \App\Models\OfficeEmployee::updatePassword($employeeId, Auth::hashPassword($newPassword));
+            \App\Models\TrustedDevice::revokeAllForUser('employee', (int) $employeeId);
+            Auth::clearTrustedDeviceCookie();
             Session::remove('force_password_change');
             AuditLog::log('employee', $employeeId, 'password_changed', 'Employee changed password', 'employee', $employeeId);
         } elseif (Auth::isAdmin()) {
@@ -267,6 +273,8 @@ class AuthController extends Controller
                 return;
             }
             User::update($userId, ['password_hash' => Auth::hashPassword($newPassword)]);
+            \App\Models\TrustedDevice::revokeAllForUser('admin', (int) $userId);
+            Auth::clearTrustedDeviceCookie();
             AuditLog::log('admin', $userId, 'password_changed', 'Admin changed password');
         }
 
@@ -403,10 +411,15 @@ class AuthController extends Controller
             return;
         }
 
+        $trustDevice = !empty($_POST['trust_device']);
+
         // Try TOTP code first
         if (TwoFactorAuth::verifyCode($secret, $code)) {
             Auth::completeTwoFactorLogin();
-            AuditLog::log($userType, $userId, 'login', 'Login with 2FA');
+            if ($trustDevice) {
+                Auth::issueTrustedDeviceCookie($userType, (int) $userId);
+            }
+            AuditLog::log($userType, $userId, 'login', 'Login with 2FA' . ($trustDevice ? ' (trusted device)' : ''));
             $this->redirectAfterLogin($userType);
             return;
         }
@@ -421,7 +434,10 @@ class AuthController extends Controller
                 $this->save2faRecoveryCodes($userType, $userId, array_values($recoveryCodes));
 
                 Auth::completeTwoFactorLogin();
-                AuditLog::log($userType, $userId, '2fa_recovery_used', 'Login with recovery code');
+                if ($trustDevice) {
+                    Auth::issueTrustedDeviceCookie($userType, (int) $userId);
+                }
+                AuditLog::log($userType, $userId, '2fa_recovery_used', 'Login with recovery code' . ($trustDevice ? ' (trusted device)' : ''));
                 $this->redirectAfterLogin($userType);
                 return;
             }

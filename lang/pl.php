@@ -538,6 +538,8 @@ return [
     '2fa_code'                 => 'Kod weryfikacyjny',
     '2fa_verify'               => 'Zweryfikuj',
     '2fa_recovery_hint'        => 'Możesz też użyć jednorazowego kodu zapasowego.',
+    '2fa_trust_device'         => 'Zapamiętaj to urządzenie',
+    '2fa_trust_device_hint'    => 'System nie zapyta o kod 2FA przez 5 dni w tej przeglądarce. Wybieraj tylko na własnym urządzeniu.',
     'back_to_login'            => 'Powrót do logowania',
     '2fa_code_required'        => 'Wprowadź kod weryfikacyjny',
     '2fa_invalid_code'         => 'Nieprawidłowy kod weryfikacyjny',

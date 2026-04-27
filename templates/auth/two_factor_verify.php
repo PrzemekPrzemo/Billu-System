@@ -44,6 +44,17 @@
                        style="text-align:center;font-size:1.5em;letter-spacing:0.3em;">
             </div>
 
+            <div class="form-group" style="display:flex;align-items:flex-start;gap:8px;font-size:0.9em;">
+                <input type="checkbox" name="trust_device" id="trust_device" value="1"
+                       style="margin-top:3px;width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;">
+                <label for="trust_device" style="cursor:pointer;line-height:1.4;">
+                    <?= $lang('2fa_trust_device') ?>
+                    <span style="display:block;color:#888;font-size:0.85em;margin-top:2px;">
+                        <?= $lang('2fa_trust_device_hint') ?>
+                    </span>
+                </label>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-full"><?= $lang('2fa_verify') ?></button>
         </form>
 

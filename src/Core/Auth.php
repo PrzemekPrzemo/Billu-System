@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientEmployee;
 use App\Models\Office;
 use App\Models\OfficeEmployee;
+use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Models\AuditLog;
 
@@ -80,8 +81,8 @@ class Auth
             return false;
         }
 
-        // Check 2FA
-        if (!empty($user['two_factor_enabled'])) {
+        // Check 2FA — but skip prompt if request comes from a trusted device.
+        if (!empty($user['two_factor_enabled']) && !self::isTrustedDevice('admin', (int) $user['id'])) {
             Session::set('2fa_pending_user_type', 'admin');
             Session::set('2fa_pending_user_id', $user['id']);
             self::logLoginAttempt('admin', $user['id'], true);
@@ -138,8 +139,8 @@ class Auth
             return false;
         }
 
-        // Check 2FA
-        if (!empty($client['two_factor_enabled'])) {
+        // Check 2FA — but skip prompt if request comes from a trusted device.
+        if (!empty($client['two_factor_enabled']) && !self::isTrustedDevice('client', (int) $client['id'])) {
             Session::set('2fa_pending_user_type', 'client');
             Session::set('2fa_pending_user_id', $client['id']);
             self::logLoginAttempt('client', $client['id'], true);
@@ -229,8 +230,8 @@ class Auth
             return false;
         }
 
-        // Check 2FA
-        if (!empty($office['two_factor_enabled'])) {
+        // Check 2FA — but skip prompt if request comes from a trusted device.
+        if (!empty($office['two_factor_enabled']) && !self::isTrustedDevice('office', (int) $office['id'])) {
             Session::set('2fa_pending_user_type', 'office');
             Session::set('2fa_pending_user_id', $office['id']);
             self::logLoginAttempt('office', $office['id'], true);
@@ -371,8 +372,8 @@ class Auth
             return false;
         }
 
-        // 2FA verify (employee already has it enabled)
-        if (!empty($employee['two_factor_enabled'])) {
+        // 2FA verify — skip prompt if request comes from a trusted device.
+        if (!empty($employee['two_factor_enabled']) && !self::isTrustedDevice('client_employee', (int) $employee['id'])) {
             Session::set('2fa_pending_user_type', 'client_employee');
             Session::set('2fa_pending_user_id', $employee['id']);
             self::logLoginAttempt('client_employee', $employee['id'], true);
@@ -923,6 +924,56 @@ class Auth
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    // ── Trusted devices (2FA bypass for known browsers) ────
+
+    /**
+     * True iff the request carries a valid trusted-device cookie for
+     * (userType, userId). Used by login* methods to skip the 2FA prompt.
+     */
+    public static function isTrustedDevice(string $userType, int $userId): bool
+    {
+        $token = $_COOKIE[TrustedDevice::COOKIE_NAME] ?? '';
+        if ($token === '') {
+            return false;
+        }
+        return TrustedDevice::verify($userType, $userId, (string) $token);
+    }
+
+    /**
+     * Issue a fresh trusted-device cookie + DB row after a successful 2FA
+     * verification when the user opted in via the "remember this device" checkbox.
+     */
+    public static function issueTrustedDeviceCookie(string $userType, int $userId, int $ttlDays = TrustedDevice::DEFAULT_TTL_DAYS): void
+    {
+        $token = TrustedDevice::issue($userType, $userId, $ttlDays);
+        $expires = time() + $ttlDays * 86400;
+        $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        setcookie(TrustedDevice::COOKIE_NAME, $token, [
+            'expires'  => $expires,
+            'path'     => '/',
+            'secure'   => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    /** Clear the trusted-device cookie on the client (logout / device list revoke). */
+    public static function clearTrustedDeviceCookie(): void
+    {
+        if (!isset($_COOKIE[TrustedDevice::COOKIE_NAME])) {
+            return;
+        }
+        $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        setcookie(TrustedDevice::COOKIE_NAME, '', [
+            'expires'  => time() - 3600,
+            'path'     => '/',
+            'secure'   => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        unset($_COOKIE[TrustedDevice::COOKIE_NAME]);
     }
 
     // ── Brute Force Protection ─────────────────────
