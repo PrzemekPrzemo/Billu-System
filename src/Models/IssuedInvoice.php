@@ -7,6 +7,26 @@ use App\Core\Database;
 
 class IssuedInvoice
 {
+    /** Fields never accepted from mass-assignment in default mode (cross-tenant or immutable). Use $allowed param to opt out. */
+    private const PROTECTED_FIELDS = ['id', 'client_id', 'created_at'];
+
+    /** Default user-controlled allowlist for invoice form submissions (ClientController, SalesInvoiceApiController). System services (PDF, KSeF, Mail) bypass via explicit $allowed. */
+    public const FILLABLE = [
+        'invoice_number', 'invoice_type', 'invoice_subtype',
+        'issue_date', 'sale_date', 'due_date',
+        'buyer_name', 'buyer_nip', 'buyer_address', 'buyer_email',
+        'seller_name', 'seller_nip', 'seller_address', 'seller_bank_account',
+        'net_amount', 'vat_amount', 'gross_amount',
+        'currency', 'currency_rate', 'net_amount_pln', 'vat_amount_pln',
+        'payment_method', 'payment_status', 'paid_at',
+        'line_items', 'vat_details', 'original_line_items',
+        'description', 'notes', 'status',
+        'contractor_id',
+        'advance_amount', 'advance_order_description',
+        'related_advance_ids',
+        'correction_reason', 'corrected_invoice_id',
+    ];
+
     public static function findById(int $id): ?array
     {
         return Database::getInstance()->fetchOne("SELECT * FROM issued_invoices WHERE id = ?", [$id]);
@@ -56,8 +76,18 @@ class IssuedInvoice
         return $id;
     }
 
-    public static function update(int $id, array $data): void
+    public static function update(int $id, array $data, ?array $allowed = null): void
     {
+        if ($allowed !== null) {
+            $data = array_intersect_key($data, array_flip($allowed));
+        } else {
+            foreach (self::PROTECTED_FIELDS as $field) {
+                unset($data[$field]);
+            }
+        }
+        if (empty($data)) {
+            return;
+        }
         self::encodeJsonFields($data);
         Database::getInstance()->update('issued_invoices', $data, 'id = ?', [$id]);
         self::invalidateAgg(self::lookupClientId($id));

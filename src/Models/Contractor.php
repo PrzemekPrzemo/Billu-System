@@ -22,6 +22,24 @@ class Contractor
         return Database::getInstance()->fetchOne("SELECT * FROM contractors WHERE id = ?", [$id]);
     }
 
+    /** Ownership-checked accessor for client-scoped routes. */
+    public static function findByIdForClient(int $id, int $clientId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT * FROM contractors WHERE id = ? AND client_id = ?",
+            [$id, $clientId]
+        );
+    }
+
+    /** Ownership-checked accessor for office-scoped routes. */
+    public static function findByIdForOffice(int $id, int $officeId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT ct.* FROM contractors ct JOIN clients c ON ct.client_id = c.id WHERE ct.id = ? AND c.office_id = ?",
+            [$id, $officeId]
+        );
+    }
+
     public static function findByClientAndNip(int $clientId, string $nip): ?array
     {
         return Database::getInstance()->fetchOne(

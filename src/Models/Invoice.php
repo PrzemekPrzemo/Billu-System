@@ -12,6 +12,24 @@ class Invoice
         return Database::getInstance()->fetchOne("SELECT * FROM invoices WHERE id = ?", [$id]);
     }
 
+    /** Ownership-checked accessor for client-scoped routes. Returns null if not found OR not owned by $clientId. */
+    public static function findByIdForClient(int $id, int $clientId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT * FROM invoices WHERE id = ? AND client_id = ?",
+            [$id, $clientId]
+        );
+    }
+
+    /** Ownership-checked accessor for office-scoped routes. Joins clients to verify office_id. */
+    public static function findByIdForOffice(int $id, int $officeId): ?array
+    {
+        return Database::getInstance()->fetchOne(
+            "SELECT i.* FROM invoices i JOIN clients c ON i.client_id = c.id WHERE i.id = ? AND c.office_id = ?",
+            [$id, $officeId]
+        );
+    }
+
     public static function findByBatch(int $batchId): array
     {
         return Database::getInstance()->fetchAll(
