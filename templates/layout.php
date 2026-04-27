@@ -63,7 +63,6 @@
                          alt="BiLLU" class="topbar-logo-light">
                     <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>"
                          alt="BiLLU" class="topbar-logo-dark">
-                    <span class="topbar-logo-text">Panel</span>
                 </a>
             </div>
 

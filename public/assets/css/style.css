@@ -119,9 +119,6 @@ body {
 .topbar-logo-dark  { display: none; }
 [data-theme="dark"] .topbar-logo-light { display: none; }
 [data-theme="dark"] .topbar-logo-dark  { display: block; }
-.topbar-logo-text { font-size: 11px; font-weight: 600; color: #757575; letter-spacing: 0.08em; text-transform: uppercase; }
-[data-theme="dark"] .topbar-logo-text { color: rgba(255,255,255,0.6); }
-@media (max-width: 640px) { .topbar-logo-text { display: none; } }
 
 .sidebar-nav { padding: 8px 12px; }
 .sidebar-group-label {
