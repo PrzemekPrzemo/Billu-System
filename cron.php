@@ -100,4 +100,26 @@ if (date('N') == 1) {
     echo "  Clients scanned: {$dupResult['clients_scanned']}, New duplicates: {$dupResult['new_duplicates']}\n";
 }
 
+// 11. Warmup NBP exchange rates (cache hit dla pierwszego logowania rano)
+echo "Warming NBP rates cache...\n";
+$nbp = CronService::warmupNbpRates();
+echo "  Cached: {$nbp['cached']}\n";
+foreach ($nbp['errors'] as $err) {
+    echo "  ERROR: {$err}\n";
+}
+
+// 12. Archive audit_log entries older than 24 months (1st of month only)
+if (date('j') === '1') {
+    echo "Archiving old audit_log entries...\n";
+    $audit = CronService::archiveAuditLog(24);
+    echo "  Archived: {$audit['archived']}, Deleted: {$audit['deleted']}";
+    if (!empty($audit['file'])) {
+        echo ", File: {$audit['file']}";
+    }
+    echo "\n";
+    foreach ($audit['errors'] as $err) {
+        echo "  ERROR: {$err}\n";
+    }
+}
+
 echo "[" . date('Y-m-d H:i:s') . "] Cron job completed.\n";

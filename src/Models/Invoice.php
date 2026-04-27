@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Cache;
 use App\Core\Database;
 
 class Invoice
@@ -58,12 +59,15 @@ class Invoice
 
     public static function create(array $data): int
     {
-        return Database::getInstance()->insert('invoices', $data);
+        $id = Database::getInstance()->insert('invoices', $data);
+        self::invalidateAgg(isset($data['client_id']) ? (int)$data['client_id'] : null);
+        return $id;
     }
 
     public static function updateFields(int $id, array $data): void
     {
         Database::getInstance()->update('invoices', $data, 'id = ?', [$id]);
+        self::invalidateAgg(self::lookupClientId($id));
     }
 
     public static function updateStatus(int $id, string $status, ?string $comment = null, ?string $costCenter = null, ?int $costCenterId = null): void
@@ -82,6 +86,7 @@ class Invoice
             $data['cost_center_id'] = $costCenterId;
         }
         Database::getInstance()->update('invoices', $data, 'id = ?', [$id]);
+        self::invalidateAgg(self::lookupClientId($id));
     }
 
     public static function autoRejectWhitelistFailed(int $batchId): int
@@ -92,7 +97,11 @@ class Invoice
              WHERE batch_id = ? AND status = 'pending' AND whitelist_failed = 1",
             [$batchId]
         );
-        return $stmt->rowCount();
+        $count = $stmt->rowCount();
+        if ($count > 0) {
+            self::invalidateAgg(); // bulk update -> flush global only
+        }
+        return $count;
     }
 
     public static function autoAcceptPending(int $batchId): int
@@ -102,7 +111,11 @@ class Invoice
              WHERE batch_id = ? AND status = 'pending'",
             [$batchId]
         );
-        return $stmt->rowCount();
+        $count = $stmt->rowCount();
+        if ($count > 0) {
+            self::invalidateAgg();
+        }
+        return $count;
     }
 
     public static function countByBatchAndStatus(int $batchId): array
@@ -115,7 +128,8 @@ class Invoice
 
     public static function getMonthlyComparison(int $clientId, int $months = 12): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:client:{$clientId}:monthlyComparison:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT YEAR(issue_date) AS year, MONTH(issue_date) AS month,
                     COUNT(*) AS total_count,
                     SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) AS accepted,
@@ -128,12 +142,13 @@ class Invoice
              GROUP BY YEAR(issue_date), MONTH(issue_date)
              ORDER BY year ASC, month ASC",
             [$clientId, $months]
-        );
+        ));
     }
 
     public static function getVerificationProgressByOffice(int $officeId): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:verificationProgressByOffice:{$officeId}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT c.id AS client_id, c.company_name, c.nip,
                     COUNT(i.id) AS total_invoices,
                     SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) AS accepted_count,
@@ -146,7 +161,7 @@ class Invoice
              GROUP BY c.id, c.company_name, c.nip
              ORDER BY c.company_name",
             [$officeId]
-        );
+        ));
     }
 
     public static function bulkUpdateCostCenter(array $invoiceIds, int $costCenterId, string $costCenterName): int
@@ -158,7 +173,11 @@ class Invoice
             "UPDATE invoices SET cost_center_id = ?, cost_center = ? WHERE id IN ($placeholders)",
             $params
         );
-        return $stmt->rowCount();
+        $count = $stmt->rowCount();
+        if ($count > 0) {
+            self::invalidateAgg(); // multi-row, may span clients -> flush global
+        }
+        return $count;
     }
 
     public static function getAcceptedByBatch(int $batchId): array
@@ -243,108 +262,127 @@ class Invoice
 
     public static function getMonthlyStats(int $months = 6, bool $excludeDemo = false): array
     {
-        $demoFilter = $excludeDemo ? " AND i.client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
-        return Database::getInstance()->fetchAll(
-            "SELECT DATE_FORMAT(i.created_at, '%Y-%m') as month,
-                    COUNT(*) as total,
-                    SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
-                    SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
-                    SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
-                    SUM(i.gross_amount) as total_gross
-             FROM invoices i
-             WHERE i.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH){$demoFilter}
-             GROUP BY DATE_FORMAT(i.created_at, '%Y-%m')
-             ORDER BY month ASC",
-            [$months]
-        );
+        $key = "inv:global:monthlyStats:{$months}:" . ($excludeDemo ? '1' : '0');
+        return self::rememberAgg($key, function () use ($months, $excludeDemo) {
+            $demoFilter = $excludeDemo ? " AND i.client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
+            return Database::getInstance()->fetchAll(
+                "SELECT DATE_FORMAT(i.created_at, '%Y-%m') as month,
+                        COUNT(*) as total,
+                        SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+                        SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+                        SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(i.gross_amount) as total_gross
+                 FROM invoices i
+                 WHERE i.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH){$demoFilter}
+                 GROUP BY DATE_FORMAT(i.created_at, '%Y-%m')
+                 ORDER BY month ASC",
+                [$months]
+            );
+        });
     }
 
     public static function getStatusTotals(bool $excludeDemo = false): array
     {
-        $demoFilter = $excludeDemo ? " WHERE client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
-        $result = Database::getInstance()->fetchOne(
-            "SELECT COUNT(*) as total,
-                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                    SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
-                    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
-             FROM invoices{$demoFilter}"
-        );
-        return $result ?: ['total' => 0, 'pending' => 0, 'accepted' => 0, 'rejected' => 0];
+        $key = "inv:global:statusTotals:" . ($excludeDemo ? '1' : '0');
+        return self::rememberAgg($key, function () use ($excludeDemo) {
+            $demoFilter = $excludeDemo ? " WHERE client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
+            $result = Database::getInstance()->fetchOne(
+                "SELECT COUNT(*) as total,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+                        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                 FROM invoices{$demoFilter}"
+            );
+            return $result ?: ['total' => 0, 'pending' => 0, 'accepted' => 0, 'rejected' => 0];
+        });
     }
 
     public static function countThisMonth(bool $excludeDemo = false): int
     {
-        $demoFilter = $excludeDemo ? " AND client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
-        $result = Database::getInstance()->fetchOne(
-            "SELECT COUNT(*) as cnt FROM invoices WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01'){$demoFilter}"
-        );
-        return (int) ($result['cnt'] ?? 0);
+        $key = "inv:global:countThisMonth:" . ($excludeDemo ? '1' : '0');
+        return (int) self::rememberAgg($key, function () use ($excludeDemo) {
+            $demoFilter = $excludeDemo ? " AND client_id NOT IN (SELECT id FROM clients WHERE is_demo = 1)" : "";
+            $result = Database::getInstance()->fetchOne(
+                "SELECT COUNT(*) as cnt FROM invoices WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01'){$demoFilter}"
+            );
+            return (int) ($result['cnt'] ?? 0);
+        });
     }
 
     public static function getMonthlyStatsByOffice(int $officeId, int $months = 6, ?array $clientFilter = null): array
     {
-        $params = [$months, $officeId];
-        $clientWhere = "";
-        if ($clientFilter !== null) {
-            $clientFilter = array_map('intval', $clientFilter);
-            $placeholders = implode(',', array_fill(0, count($clientFilter), '?'));
-            $clientWhere = " AND i.client_id IN ({$placeholders})";
-            $params = array_merge($params, $clientFilter);
-        }
-        return Database::getInstance()->fetchAll(
-            "SELECT DATE_FORMAT(i.created_at, '%Y-%m') as month,
-                    COUNT(*) as total,
-                    SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
-                    SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
-                    SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
-                    SUM(i.gross_amount) as total_gross
-             FROM invoices i
-             JOIN clients c ON c.id = i.client_id
-             WHERE i.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
-               AND c.office_id = ?{$clientWhere}
-             GROUP BY DATE_FORMAT(i.created_at, '%Y-%m')
-             ORDER BY month ASC",
-            $params
-        );
+        $filterHash = $clientFilter === null ? 'all' : md5(implode(',', array_map('intval', $clientFilter)));
+        $key = "inv:global:monthlyStatsByOffice:{$officeId}:{$months}:{$filterHash}";
+        return self::rememberAgg($key, function () use ($officeId, $months, $clientFilter) {
+            $params = [$months, $officeId];
+            $clientWhere = "";
+            if ($clientFilter !== null) {
+                $clientFilter = array_map('intval', $clientFilter);
+                $placeholders = implode(',', array_fill(0, count($clientFilter), '?'));
+                $clientWhere = " AND i.client_id IN ({$placeholders})";
+                $params = array_merge($params, $clientFilter);
+            }
+            return Database::getInstance()->fetchAll(
+                "SELECT DATE_FORMAT(i.created_at, '%Y-%m') as month,
+                        COUNT(*) as total,
+                        SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+                        SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+                        SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(i.gross_amount) as total_gross
+                 FROM invoices i
+                 JOIN clients c ON c.id = i.client_id
+                 WHERE i.created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+                   AND c.office_id = ?{$clientWhere}
+                 GROUP BY DATE_FORMAT(i.created_at, '%Y-%m')
+                 ORDER BY month ASC",
+                $params
+            );
+        });
     }
 
     public static function getStatusTotalsByOffice(int $officeId, ?array $clientFilter = null): array
     {
-        $params = [$officeId];
-        $clientWhere = "";
-        if ($clientFilter !== null) {
-            $clientFilter = array_map('intval', $clientFilter);
-            $placeholders = implode(',', array_fill(0, count($clientFilter), '?'));
-            $clientWhere = " AND i.client_id IN ({$placeholders})";
-            $params = array_merge($params, $clientFilter);
-        }
-        $result = Database::getInstance()->fetchOne(
-            "SELECT COUNT(*) as total,
-                    SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
-                    SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
-                    SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected
-             FROM invoices i
-             JOIN clients c ON c.id = i.client_id
-             WHERE c.office_id = ?{$clientWhere}",
-            $params
-        );
-        return $result ?: ['total' => 0, 'pending' => 0, 'accepted' => 0, 'rejected' => 0];
+        $filterHash = $clientFilter === null ? 'all' : md5(implode(',', array_map('intval', $clientFilter)));
+        $key = "inv:global:statusTotalsByOffice:{$officeId}:{$filterHash}";
+        return self::rememberAgg($key, function () use ($officeId, $clientFilter) {
+            $params = [$officeId];
+            $clientWhere = "";
+            if ($clientFilter !== null) {
+                $clientFilter = array_map('intval', $clientFilter);
+                $placeholders = implode(',', array_fill(0, count($clientFilter), '?'));
+                $clientWhere = " AND i.client_id IN ({$placeholders})";
+                $params = array_merge($params, $clientFilter);
+            }
+            $result = Database::getInstance()->fetchOne(
+                "SELECT COUNT(*) as total,
+                        SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) as pending,
+                        SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+                        SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected
+                 FROM invoices i
+                 JOIN clients c ON c.id = i.client_id
+                 WHERE c.office_id = ?{$clientWhere}",
+                $params
+            );
+            return $result ?: ['total' => 0, 'pending' => 0, 'accepted' => 0, 'rejected' => 0];
+        });
     }
 
     public static function getTopSellersByClient(int $clientId, int $limit = 5): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:client:{$clientId}:topSellers:{$limit}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT seller_name, seller_nip, COUNT(*) as invoice_count, SUM(gross_amount) as total_gross
              FROM invoices WHERE client_id = ?
              GROUP BY seller_name, seller_nip
              ORDER BY invoice_count DESC LIMIT ?",
             [$clientId, $limit]
-        );
+        ));
     }
 
     public static function getSupplierAnalysis(int $clientId, string $dateFrom, string $dateTo, int $limit = 20): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:client:{$clientId}:supplierAnalysis:{$dateFrom}:{$dateTo}:{$limit}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT seller_nip, seller_name,
                     COUNT(*) AS invoice_count,
                     SUM(net_amount) AS total_net,
@@ -358,12 +396,13 @@ class Invoice
              ORDER BY total_gross DESC
              LIMIT ?",
             [$clientId, $dateFrom, $dateTo, $limit]
-        );
+        ));
     }
 
     public static function getSupplierMonthlyTrend(int $clientId, string $sellerNip, int $months = 6): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:client:{$clientId}:supplierMonthlyTrend:" . md5($sellerNip) . ":{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT YEAR(issue_date) AS year, MONTH(issue_date) AS month,
                     COUNT(*) AS invoice_count, SUM(gross_amount) AS total_gross
              FROM invoices
@@ -371,12 +410,13 @@ class Invoice
              GROUP BY YEAR(issue_date), MONTH(issue_date)
              ORDER BY year ASC, month ASC",
             [$clientId, $sellerNip, $months]
-        );
+        ));
     }
 
     public static function getRejectionRateByOffice(int $limit = 15): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:rejectionRateByOffice:{$limit}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT o.id, o.name,
                     COUNT(i.id) as total,
                     SUM(CASE WHEN i.status = 'accepted' THEN 1 ELSE 0 END) as accepted,
@@ -390,22 +430,24 @@ class Invoice
              ORDER BY rejection_pct DESC
              LIMIT ?",
             [$limit]
-        );
+        ));
     }
 
     public static function getMonthlyCountAll(int $months = 6): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:monthlyCountAll:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count, COALESCE(SUM(gross_amount), 0) as total_gross
              FROM invoices WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
              GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month ASC",
             [$months]
-        );
+        ));
     }
 
     public static function getAvgVerificationTimeByOffice(int $officeId, int $months = 6): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:avgVerificationTimeByOffice:{$officeId}:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT DATE_FORMAT(ib.created_at, '%Y-%m') as month,
                     COUNT(DISTINCT ib.id) as batch_count,
                     AVG(TIMESTAMPDIFF(HOUR, ib.created_at, ib.finalized_at)) as avg_hours,
@@ -417,12 +459,13 @@ class Invoice
              GROUP BY DATE_FORMAT(ib.created_at, '%Y-%m')
              ORDER BY month ASC",
             [$officeId, $months]
-        );
+        ));
     }
 
     public static function getRejectionRateByClient(int $officeId, int $limit = 10): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:rejectionRateByClient:{$officeId}:{$limit}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT c.id, c.company_name, c.nip,
                     COUNT(i.id) as total,
                     SUM(CASE WHEN i.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
@@ -435,12 +478,13 @@ class Invoice
              ORDER BY rejection_pct DESC
              LIMIT ?",
             [$officeId, $limit]
-        );
+        ));
     }
 
     public static function getMonthlyGrossByOffice(int $officeId, int $months = 12): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "inv:global:monthlyGrossByOffice:{$officeId}:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT DATE_FORMAT(i.issue_date, '%Y-%m') as month,
                     COALESCE(SUM(CASE WHEN i.status = 'accepted' THEN i.net_amount ELSE 0 END), 0) as net,
                     COALESCE(SUM(CASE WHEN i.status = 'accepted' THEN i.gross_amount ELSE 0 END), 0) as gross,
@@ -451,6 +495,39 @@ class Invoice
              GROUP BY DATE_FORMAT(i.issue_date, '%Y-%m')
              ORDER BY month ASC",
             [$officeId, $months]
+        ));
+    }
+
+    /**
+     * Pomocnik do cachowania agregatów. TTL z bucketu 'aggregate' (domyślnie 30min).
+     * Klucz powinien zawierać tag (np. "inv:global:..." lub "inv:client:N:...") -
+     * dzięki temu invalidateAgg() może go usunąć przez flushTag().
+     */
+    private static function rememberAgg(string $key, callable $producer): mixed
+    {
+        $cache = Cache::getInstance();
+        return $cache->remember($key, $cache->ttl('aggregate'), $producer);
+    }
+
+    private static function lookupClientId(int $invoiceId): ?int
+    {
+        $row = Database::getInstance()->fetchOne(
+            "SELECT client_id FROM invoices WHERE id = ?",
+            [$invoiceId]
         );
+        return $row ? (int)$row['client_id'] : null;
+    }
+
+    /**
+     * Invalidacja cache po zapisie faktury. Zawsze flush'uje 'inv:global',
+     * dodatkowo 'inv:client:N' jeśli client_id jest znany.
+     */
+    private static function invalidateAgg(?int $clientId = null): void
+    {
+        $cache = Cache::getInstance();
+        $cache->flushTag('inv:global');
+        if ($clientId !== null && $clientId > 0) {
+            $cache->flushTag('inv:client:' . $clientId);
+        }
     }
 }
