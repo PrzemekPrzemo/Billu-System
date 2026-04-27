@@ -286,6 +286,58 @@ class OfficeController extends Controller
         ]);
     }
 
+    /**
+     * Office (or office-employee assigned to the client) accepts a cost invoice
+     * that the client cannot accept on their own because whitelist_failed=1.
+     * Requires a written justification (>=10 chars). All four tenant gates apply:
+     * invoice → batch → client → office_id, plus the office-employee assignment
+     * filter via requireClientForOffice. Auditable.
+     */
+    public function invoiceWhitelistOverride(string $id): void
+    {
+        $invoiceId = (int) $id;
+        if (!$this->validateCsrf()) { $this->redirect('/office/batches'); return; }
+
+        $invoice = Invoice::findById($invoiceId);
+        if (!$invoice) { $this->redirect('/office/batches'); return; }
+
+        // Tenant gate — the invoice must belong to a client of THIS office, AND
+        // (for office-employees) the client must be in the assignment filter.
+        if ($this->requireClientForOffice((int) $invoice['client_id'], '/office/batches') === null) {
+            return;
+        }
+
+        // Override only makes sense when (a) the row is actually whitelist-failed
+        // and (b) the invoice is still pending. Already-accepted/rejected: no-op.
+        if (empty($invoice['whitelist_failed']) || ($invoice['status'] ?? '') !== 'pending') {
+            Session::flash('error', 'whitelist_override_not_applicable');
+            $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
+            return;
+        }
+
+        $reason = trim($_POST['reason'] ?? '');
+        if (mb_strlen($reason) < 10) {
+            Session::flash('error', 'whitelist_override_reason_required');
+            $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
+            return;
+        }
+        if (mb_strlen($reason) > 1000) {
+            $reason = mb_substr($reason, 0, 1000);
+        }
+
+        $byType = Auth::isEmployee() ? 'employee' : 'office';
+        $byId   = (int) Auth::currentUserId();
+
+        Invoice::acceptWithWhitelistOverride($invoiceId, $reason, $byType, $byId);
+
+        AuditLog::log($byType, $byId, 'invoice_whitelist_override',
+            "Invoice #{$invoiceId} accepted on behalf of client #{$invoice['client_id']} (whitelist override). Reason: " . mb_substr($reason, 0, 200),
+            'invoice', $invoiceId);
+
+        Session::flash('success', 'whitelist_override_applied');
+        $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
+    }
+
     public function importForm(): void
     {
         $officeId = Session::get('office_id');
