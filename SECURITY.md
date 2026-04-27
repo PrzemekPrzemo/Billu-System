@@ -17,6 +17,7 @@ issues.
 | Actor                  | Trust level | Boundary                                                              |
 |------------------------|-------------|-----------------------------------------------------------------------|
 | Anonymous              | None        | Login page, password reset, public assets only                        |
+| Client employee        | Most limited| Own profile + own payslips + own leaves + leave-request submit only   |
 | Client (tenant user)   | Limited     | Strict per-`client_id` data scope                                     |
 | Office employee        | Limited     | All clients of the assigned office; explicit assignments for employees |
 | Office admin           | Elevated    | All clients of own office; SMTP / branding / KSeF config              |
@@ -40,19 +41,21 @@ guard them.
    `Model::findByIdForOffice($id, $officeId)` — see
    `docs/multitenant.md`.
 2. **Mass assignment is allow-listed.** `Client::FILLABLE`,
-   `Office::FILLABLE`, `IssuedInvoice::FILLABLE` define which fields a
-   form submission may set. Privilege fields (`office_id`,
-   `password_hash`, `is_demo`, `client_id`, …) require an explicit
-   `$allowed` argument to `Model::update()` and are only used in
-   `AdminController` paths.
+   `Office::FILLABLE`, `IssuedInvoice::FILLABLE`,
+   `ClientEmployee::FILLABLE` define which fields a form submission may
+   set. Privilege fields (`office_id`, `password_hash`, `is_demo`,
+   `client_id`, `activation_token`, `two_factor_secret`, …) require an
+   explicit `$allowed` argument to `Model::update()` and are only used
+   in admin paths or dedicated setters
+   (`ClientEmployee::setPasswordAndActivate`, `issueActivationToken`).
 3. **Authentication state is server-side.** Sessions live in MySQL,
    not in cookies; CSRF tokens rotate per session; failed-login
    throttling lives in `Auth::isRateLimited` (per IP, 15 min lockout
    after 5 attempts).
 4. **Two-factor enforcement is configurable.** Master admin toggles
-   `2fa_required_admin / _client / _office` (see `/admin/settings` →
-   "2FA"). Users without TOTP get redirected to `/two-factor-setup` on
-   next login.
+   `2fa_required_admin / _client / _office / _client_employee` (see
+   `/admin/settings` → "2FA"). Users without TOTP get redirected to
+   `/two-factor-setup` on next login.
 5. **Sensitive values are redacted in audit log.** `AuditLog::log`
    replaces `password_hash`, `totp_secret`, `recovery_codes`,
    `ksef_token`, `api_key`, etc. with `[REDACTED]` before persisting.

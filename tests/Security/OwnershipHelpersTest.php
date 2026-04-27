@@ -9,6 +9,7 @@ use App\Models\InvoiceBatch;
 use App\Models\Contractor;
 use App\Models\Message;
 use App\Models\ClientFile;
+use App\Models\ClientEmployee;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -22,11 +23,12 @@ final class OwnershipHelpersTest extends TestCase
     public static function modelProvider(): array
     {
         return [
-            'Invoice'      => [Invoice::class],
-            'InvoiceBatch' => [InvoiceBatch::class],
-            'Contractor'   => [Contractor::class],
-            'Message'      => [Message::class],
-            'ClientFile'   => [ClientFile::class],
+            'Invoice'        => [Invoice::class],
+            'InvoiceBatch'   => [InvoiceBatch::class],
+            'Contractor'     => [Contractor::class],
+            'Message'        => [Message::class],
+            'ClientFile'     => [ClientFile::class],
+            'ClientEmployee' => [ClientEmployee::class],
         ];
     }
 
