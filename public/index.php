@@ -365,6 +365,12 @@ $router->get('/client/calculators', [ClientController::class, 'calculators']);
 
 // Client: HR / Kadry i Płace (read-only + leave requests)
 $router->get('/client/hr/employees', [ClientController::class, 'hrEmployees']);
+$router->get('/client/hr/employees/create', [ClientController::class, 'hrEmployeeCreateForm']);
+$router->post('/client/hr/employees/create', [ClientController::class, 'hrEmployeeStore']);
+$router->get('/client/hr/employees/{id}/edit', [ClientController::class, 'hrEmployeeEditForm']);
+$router->post('/client/hr/employees/{id}/update', [ClientController::class, 'hrEmployeeUpdate']);
+$router->post('/client/hr/employees/{id}/delete', [ClientController::class, 'hrEmployeeDelete']);
+$router->post('/client/hr/employees/{id}/resend-invitation', [ClientController::class, 'hrEmployeeResendInvitation']);
 $router->get('/client/hr/payroll', [ClientController::class, 'hrPayrollLists']);
 $router->get('/client/hr/payroll/{id}', [ClientController::class, 'hrPayrollDetail']);
 $router->get('/client/hr/payroll/{id}/pdf', [ClientController::class, 'hrPayrollPdf']);

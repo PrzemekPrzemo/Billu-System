@@ -5558,10 +5558,175 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
     {
         ModuleAccess::requireModule('hr');
         $clientId = (int)Session::get('client_id');
-        $employees = ClientEmployee::findByClient($clientId);
+        $employees = ClientEmployee::findByClient($clientId, false);
         $this->render('client/hr_employees', [
             'employees' => $employees,
         ]);
+    }
+
+    public function hrEmployeeCreateForm(): void
+    {
+        ModuleAccess::requireModule('hr');
+        $this->render('client/hr_employee_form', [
+            'employee' => null,
+        ]);
+    }
+
+    public function hrEmployeeStore(): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect('/client/hr/employees/create'); return; }
+        $clientId = (int)Session::get('client_id');
+
+        $data = $this->buildEmployeeData($_POST);
+        $loginEmail = trim($_POST['login_email'] ?? '');
+        $canLogin   = !empty($_POST['can_login']) && $loginEmail !== '';
+
+        $data['client_id']   = $clientId;
+        $data['login_email'] = $canLogin ? $loginEmail : null;
+        $data['can_login']   = $canLogin ? 1 : 0;
+
+        $employeeId = ClientEmployee::create($data);
+
+        if ($canLogin) {
+            $this->sendEmployeeInvitation($employeeId, $loginEmail, $data['first_name'], $data['last_name']);
+            Session::flash('success', 'hr_employee_saved_invitation_sent');
+        } else {
+            Session::flash('success', 'hr_employee_saved');
+        }
+
+        AuditLog::log('client', $clientId, 'hr_employee_created',
+            "Employee {$data['first_name']} {$data['last_name']} added (login=" . ($canLogin ? 'yes' : 'no') . ')',
+            'client_employee', $employeeId);
+
+        $this->redirect('/client/hr/employees');
+    }
+
+    public function hrEmployeeEditForm(int $id): void
+    {
+        ModuleAccess::requireModule('hr');
+        $clientId = (int)Session::get('client_id');
+        $employee = ClientEmployee::findByIdForClient($id, $clientId);
+        if (!$employee) { $this->redirect('/client/hr/employees'); return; }
+        $this->render('client/hr_employee_form', [
+            'employee' => $employee,
+        ]);
+    }
+
+    public function hrEmployeeUpdate(int $id): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect("/client/hr/employees/{$id}/edit"); return; }
+        $clientId = (int)Session::get('client_id');
+
+        $employee = ClientEmployee::findByIdForClient($id, $clientId);
+        if (!$employee) { $this->redirect('/client/hr/employees'); return; }
+
+        $data = $this->buildEmployeeData($_POST);
+        $loginEmail = trim($_POST['login_email'] ?? '');
+        $canLogin   = !empty($_POST['can_login']) && $loginEmail !== '';
+        $data['login_email'] = $canLogin ? $loginEmail : null;
+        $data['can_login']   = $canLogin ? 1 : 0;
+
+        ClientEmployee::update($id, $data, ClientEmployee::clientAllowedFields());
+
+        // If we just turned login on AND the employee has no password yet — send invitation.
+        $needsInvite = $canLogin && empty($employee['password_hash'])
+                       && ($loginEmail !== ($employee['login_email'] ?? '') || empty($employee['can_login']));
+        if ($needsInvite) {
+            $this->sendEmployeeInvitation($id, $loginEmail, $data['first_name'], $data['last_name']);
+            Session::flash('success', 'hr_employee_saved_invitation_sent');
+        } else {
+            Session::flash('success', 'hr_employee_saved');
+        }
+
+        AuditLog::log('client', $clientId, 'hr_employee_updated',
+            "Employee #{$id} updated", 'client_employee', $id);
+
+        $this->redirect('/client/hr/employees');
+    }
+
+    public function hrEmployeeDelete(int $id): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect('/client/hr/employees'); return; }
+        $clientId = (int)Session::get('client_id');
+
+        $employee = ClientEmployee::findByIdForClient($id, $clientId);
+        if (!$employee) { $this->redirect('/client/hr/employees'); return; }
+
+        // Soft delete — preserves payroll history and FK integrity.
+        ClientEmployee::update($id, ['is_active' => 0]);
+
+        AuditLog::log('client', $clientId, 'hr_employee_deactivated',
+            "Employee #{$id} deactivated", 'client_employee', $id);
+        Session::flash('success', 'hr_employee_deactivated');
+        $this->redirect('/client/hr/employees');
+    }
+
+    public function hrEmployeeResendInvitation(int $id): void
+    {
+        ModuleAccess::requireModule('hr');
+        if (!$this->validateCsrf()) { $this->redirect('/client/hr/employees'); return; }
+        $clientId = (int)Session::get('client_id');
+
+        $employee = ClientEmployee::findByIdForClient($id, $clientId);
+        if (!$employee || empty($employee['login_email']) || empty($employee['can_login'])) {
+            Session::flash('error', 'hr_employee_invitation_unavailable');
+            $this->redirect('/client/hr/employees');
+            return;
+        }
+
+        $this->sendEmployeeInvitation($id, $employee['login_email'], $employee['first_name'], $employee['last_name']);
+        AuditLog::log('client', $clientId, 'hr_employee_invitation_resent',
+            "Invitation resent to {$employee['login_email']}", 'client_employee', $id);
+        Session::flash('success', 'hr_employee_invitation_sent');
+        $this->redirect('/client/hr/employees');
+    }
+
+    /** Build $_POST → DB-shape array, only fields exposed to the form. */
+    private function buildEmployeeData(array $post): array
+    {
+        return [
+            'first_name'          => $this->sanitize($post['first_name'] ?? ''),
+            'last_name'           => $this->sanitize($post['last_name'] ?? ''),
+            'pesel'               => $this->sanitize($post['pesel'] ?? ''),
+            'date_of_birth'       => !empty($post['date_of_birth']) ? $post['date_of_birth'] : null,
+            'email'               => $this->sanitize($post['email'] ?? ''),
+            'phone'               => $this->sanitize($post['phone'] ?? ''),
+            'address_street'      => $this->sanitize($post['address_street'] ?? ''),
+            'address_city'        => $this->sanitize($post['address_city'] ?? ''),
+            'address_postal_code' => $this->sanitize($post['address_postal_code'] ?? ''),
+            'tax_office'          => $this->sanitize($post['tax_office'] ?? ''),
+            'bank_account'        => $this->sanitize($post['bank_account'] ?? ''),
+            'nfz_branch'          => $this->sanitize($post['nfz_branch'] ?? ''),
+            'hired_at'            => !empty($post['hired_at']) ? $post['hired_at'] : null,
+            'terminated_at'       => !empty($post['terminated_at']) ? $post['terminated_at'] : null,
+            'notes'                => $this->sanitize($post['notes'] ?? ''),
+            'is_active'            => isset($post['is_active']) ? 1 : 0,
+        ];
+    }
+
+    /** Issue a fresh activation token and email the employee a link to set their password. */
+    private function sendEmployeeInvitation(int $employeeId, string $email, string $firstName, string $lastName): void
+    {
+        $token = ClientEmployee::issueActivationToken($employeeId);
+        $appConfig = require __DIR__ . '/../../config/app.php';
+        $baseUrl = rtrim($appConfig['url'] ?? 'https://portal.billu.pl', '/');
+        $activateUrl = $baseUrl . '/employee/activate?token=' . $token;
+
+        $subject = 'Aktywacja konta pracowniczego BiLLU';
+        $html = '<p>Witaj ' . htmlspecialchars(trim($firstName . ' ' . $lastName)) . ',</p>'
+              . '<p>Twój pracodawca utworzył dla Ciebie konto w panelu pracowniczym BiLLU.</p>'
+              . '<p>Aby ustawić hasło i aktywować konto, kliknij poniższy link (ważny 72 godziny):</p>'
+              . '<p><a href="' . htmlspecialchars($activateUrl) . '">' . htmlspecialchars($activateUrl) . '</a></p>'
+              . '<p>Po aktywacji będziesz mógł logować się na: <a href="' . htmlspecialchars($baseUrl) . '/employee/login">' . htmlspecialchars($baseUrl) . '/employee/login</a></p>';
+
+        try {
+            MailService::createSimpleMail($email, $subject, $html, (int) Session::get('client_id'));
+        } catch (\Throwable $e) {
+            error_log("Employee invitation email failed: " . $e->getMessage());
+        }
     }
 
     public function hrPayrollLists(): void
