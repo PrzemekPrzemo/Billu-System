@@ -210,6 +210,7 @@ $router->get('/office/clients/{id}/cost-centers', [OfficeController::class, 'cli
 $router->post('/office/clients/{id}/cost-centers', [OfficeController::class, 'clientCostCentersUpdate']);
 $router->get('/office/batches', [OfficeController::class, 'batches']);
 $router->get('/office/batches/{id}', [OfficeController::class, 'batchDetail']);
+$router->post('/office/invoices/{id}/whitelist-override', [OfficeController::class, 'invoiceWhitelistOverride']);
 $router->get('/office/import', [OfficeController::class, 'importForm']);
 $router->get('/office/import/template', [OfficeController::class, 'importTemplate']);
 $router->post('/office/import', [OfficeController::class, 'import']);
