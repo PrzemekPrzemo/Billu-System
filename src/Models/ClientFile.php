@@ -33,7 +33,22 @@ class ClientFile
                 $description,
             ]
         );
-        return (int) $db->lastInsertId();
+        $newId = (int) $db->lastInsertId();
+
+        // Best-effort SFTP push. Resolve the absolute local path the same way
+        // getFullPath() does so the worker reads exactly what's on disk.
+        $client = \App\Models\Client::findById($clientId);
+        if ($client && !empty($client['office_id'])) {
+            $rec = ['client_id' => $clientId, 'stored_path' => $storedPath];
+            $abs = self::getFullPath($rec, $client['file_storage_path'] ?? null, $client['nip'] ?? '');
+            if ($abs !== null && is_file($abs)) {
+                \App\Services\SftpUploadService::enqueue(
+                    (int) $client['office_id'], $clientId,
+                    'files', $abs, 'cf:' . $newId
+                );
+            }
+        }
+        return $newId;
     }
 
     public static function findById(int $id): ?array

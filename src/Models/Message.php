@@ -49,6 +49,18 @@ class Message
             "UPDATE messages SET attachment_path = ?, attachment_name = ? WHERE id = ?",
             [$path, $name, $id]
         );
+
+        // Best-effort SFTP push of the attachment (no-op when office or client opt is off).
+        $msg = self::findById($id);
+        if ($msg && !empty($msg['client_id'])) {
+            $client = \App\Models\Client::findById((int) $msg['client_id']);
+            if ($client && !empty($client['office_id']) && is_file($path)) {
+                \App\Services\SftpUploadService::enqueue(
+                    (int) $client['office_id'], (int) $msg['client_id'],
+                    'messages', $path, 'msg:' . $id
+                );
+            }
+        }
     }
 
     /**
