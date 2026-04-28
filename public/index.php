@@ -474,5 +474,30 @@ $router->get('/client/sales/{id}/upo', [ClientController::class, 'issuedInvoiceU
 $router->post('/client/sales/{id}/duplicate', [ClientController::class, 'issuedInvoiceDuplicate']);
 $router->get('/client/sales/{id}/correction', [ClientController::class, 'issuedInvoiceCorrection']);
 
+// ── Contracts module ─────────────────────────────────────
+// Office side
+$router->get ('/office/contracts',                                [\App\Controllers\ContractController::class, 'dashboard']);
+$router->get ('/office/contracts/templates',                      [\App\Controllers\ContractController::class, 'templatesIndex']);
+$router->get ('/office/contracts/templates/upload',               [\App\Controllers\ContractController::class, 'templateUploadForm']);
+$router->post('/office/contracts/templates/upload',               [\App\Controllers\ContractController::class, 'templateUpload']);
+$router->get ('/office/contracts/templates/{id}/edit',            [\App\Controllers\ContractController::class, 'templateEdit']);
+$router->post('/office/contracts/templates/{id}/update',          [\App\Controllers\ContractController::class, 'templateUpdate']);
+$router->post('/office/contracts/templates/{id}/delete',          [\App\Controllers\ContractController::class, 'templateDelete']);
+$router->get ('/office/contracts/templates/{id}/preview',         [\App\Controllers\ContractController::class, 'templatePreview']);
+$router->get ('/office/contracts/templates/{id}/issue',           [\App\Controllers\ContractController::class, 'formCreateForm']);
+$router->post('/office/contracts/templates/{id}/issue',           [\App\Controllers\ContractController::class, 'formStore']);
+$router->get ('/office/contracts/forms',                          [\App\Controllers\ContractController::class, 'formsIndex']);
+$router->get ('/office/contracts/forms/{id}',                     [\App\Controllers\ContractController::class, 'formDetail']);
+$router->post('/office/contracts/forms/{id}/cancel',              [\App\Controllers\ContractController::class, 'formCancel']);
+$router->get ('/office/contracts/forms/{id}/filled.pdf',          [\App\Controllers\ContractController::class, 'downloadFilledPdf']);
+$router->get ('/office/contracts/forms/{id}/signed.pdf',          [\App\Controllers\ContractController::class, 'downloadSignedPdf']);
+// Public token-based form
+$router->get ('/contracts/form/{token}',                          [\App\Controllers\PublicContractFormController::class, 'formView']);
+$router->post('/contracts/form/submit',                           [\App\Controllers\PublicContractFormController::class, 'formSubmit']);
+// Client panel — list of own forms
+$router->get ('/client/contracts',                                [ClientController::class, 'contractsIndex']);
+// SIGNIUS webhook (HMAC-verified inside controller)
+$router->post('/webhooks/signius',                                [\App\Controllers\SigniusWebhookController::class, 'handle']);
+
 // Dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
