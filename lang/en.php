@@ -1840,6 +1840,7 @@ return [
     'whitelist_override_applied'       => 'Invoice accepted on behalf of the client. Justification saved.',
     'whitelist_override_reason_required' => 'Justification is required (min. 10 characters).',
     'whitelist_override_not_applicable' => 'Override accept is available only for pending invoices with a VAT whitelist mismatch.',
+    'sftp_saved'                       => 'SFTP configuration saved.',
     'module_enabled'           => 'Enabled',
     'module_disabled'          => 'Disabled',
     'module_not_available'     => 'This module is not available for your office.',

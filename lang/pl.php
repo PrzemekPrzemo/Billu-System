@@ -1841,6 +1841,7 @@ return [
     'whitelist_override_applied'       => 'Faktura zaakceptowana w imieniu klienta. Uzasadnienie zapisane.',
     'whitelist_override_reason_required' => 'Uzasadnienie jest wymagane (min. 10 znaków).',
     'whitelist_override_not_applicable' => 'Akceptacja z uzasadnieniem jest dostępna tylko dla faktur oczekujących z błędem białej listy VAT.',
+    'sftp_saved'                       => 'Konfiguracja SFTP zapisana.',
     'module_enabled'           => 'Włączony',
     'module_disabled'          => 'Wyłączony',
     'module_not_available'     => 'Ten moduł nie jest dostępny dla Twojego biura.',
