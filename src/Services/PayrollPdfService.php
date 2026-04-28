@@ -116,6 +116,15 @@ class PayrollPdfService
         $filepath = $storagePath . '/' . $filename;
         $pdf->Output($filepath, 'F');
 
+        // Best-effort SFTP push for the payslip-list PDF.
+        $client = \App\Models\Client::findById((int) $list['client_id']);
+        if ($client && !empty($client['office_id'])) {
+            \App\Services\SftpUploadService::enqueue(
+                (int) $client['office_id'], (int) $list['client_id'],
+                'payslips', $filepath, 'list:' . (int) $listId
+            );
+        }
+
         return $filepath;
     }
 
@@ -246,6 +255,15 @@ class PayrollPdfService
         $filename = sprintf('pasek_%d_%d_%02d_%d.pdf', $entry['employee_id'], $entry['client_id'], $list['month'], $list['year']);
         $filepath = $storagePath . '/' . $filename;
         $pdf->Output($filepath, 'F');
+
+        // Best-effort SFTP push of the individual payslip.
+        $client = \App\Models\Client::findById((int) $entry['client_id']);
+        if ($client && !empty($client['office_id'])) {
+            \App\Services\SftpUploadService::enqueue(
+                (int) $client['office_id'], (int) $entry['client_id'],
+                'payslips', $filepath, 'entry:' . (int) $entryId
+            );
+        }
 
         return $filepath;
     }
