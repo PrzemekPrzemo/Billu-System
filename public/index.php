@@ -237,6 +237,9 @@ $router->post('/office/employees/{id}/delete', [OfficeController::class, 'employ
 $router->post('/office/impersonate-client', [OfficeController::class, 'impersonateClient']);
 $router->get('/office/settings', [OfficeController::class, 'settingsForm']);
 $router->post('/office/settings', [OfficeController::class, 'settingsUpdate']);
+$router->get('/office/sftp', [OfficeController::class, 'sftpForm']);
+$router->post('/office/sftp', [OfficeController::class, 'sftpUpdate']);
+$router->post('/office/sftp/test', [OfficeController::class, 'sftpTest']);
 $router->get('/office/email-settings', [OfficeController::class, 'emailSettings']);
 $router->post('/office/email-settings', [OfficeController::class, 'emailSettingsUpdate']);
 
