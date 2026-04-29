@@ -366,9 +366,11 @@ class CronService
             $results['errors'][] = 'login_history cleanup: ' . $e->getMessage();
         }
 
-        // 5. Delete old audit log entries (older than 365 days)
+        // 5. Delete old audit log entries — retention policy: 37 days.
+        // The activity-log view (/admin/activity-log) operates on this
+        // window. Anything older is dropped to honor data minimization.
         try {
-            $stmt = $db->query("DELETE FROM audit_log WHERE created_at < DATE_SUB(NOW(), INTERVAL 365 DAY)");
+            $stmt = $db->query("DELETE FROM audit_log WHERE created_at < DATE_SUB(NOW(), INTERVAL 37 DAY)");
             $results['logs_cleared'] += (int) $stmt->rowCount();
         } catch (\Exception $e) {
             $results['errors'][] = 'audit_log cleanup: ' . $e->getMessage();
