@@ -11,6 +11,7 @@ use App\Core\Language;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceBatch;
+use App\Models\IssuedInvoice;
 use App\Models\Office;
 use App\Models\AuditLog;
 use App\Models\Setting;
