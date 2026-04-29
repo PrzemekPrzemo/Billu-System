@@ -2883,6 +2883,205 @@ class OfficeController extends Controller
         $this->redirect("/office/clients/{$clientId}/notes");
     }
 
+    // ── External register notes (GUS / KRS / CEIDG / CRBR) ───
+    //
+    // Office-only data: notes are NEVER exposed to clients or
+    // client-employees. Tenant gate via requireClientForOffice()
+    // (which already enforces the office_employee assignment filter)
+    // for every endpoint.
+
+    public function clientRegisters(string $id): void
+    {
+        $clientId = (int) $id;
+        $client = $this->requireClientForOffice($clientId, '/office/clients');
+        if ($client === null) return;
+
+        $notes = \App\Models\ClientExternalNote::findHistoryForOffice(
+            'client', $clientId, (int) Session::get('office_id'), 100
+        );
+
+        $this->render('office/client_registers', [
+            'client' => $client,
+            'notes'  => $notes,
+            'target_type' => 'client',
+            'target_id'   => $clientId,
+            'is_office_admin' => Auth::isOffice(), // CRBR button only for office admin
+        ]);
+    }
+
+    public function clientRegistersRefresh(string $id): void
+    {
+        if (!$this->validateCsrf()) {
+            $this->redirect('/office/clients');
+            return;
+        }
+        $clientId = (int) $id;
+        $client = $this->requireClientForOffice($clientId, '/office/clients');
+        if ($client === null) return;
+
+        $nip = preg_replace('/[^0-9]/', '', $client['nip'] ?? '');
+        if (strlen($nip) !== 10) {
+            Session::flash('error', 'Klient nie ma poprawnego NIP do weryfikacji.');
+            $this->redirect("/office/clients/{$clientId}/registers");
+            return;
+        }
+
+        [$actorType, $actorId] = $this->actorIdentity();
+        $orchestrator = new \App\Services\CompanyLookupService();
+        $result = $orchestrator->enrichedLookup($nip, [
+            'client_id'   => $clientId,
+            'target_type' => 'client',
+            'target_id'   => $clientId,
+            'actor_type'  => $actorType,
+            'actor_id'    => $actorId,
+        ]);
+
+        AuditLog::log($actorType, $actorId, 'registers_refresh',
+            "client #{$clientId} — sources: " . implode(',', array_keys(array_filter([
+                'gus' => $result['gus'], 'ceidg' => $result['ceidg'], 'krs' => $result['krs'],
+            ]))), 'client'
+        );
+
+        $count = count($result['notes_created']);
+        Session::flash($count > 0 ? 'success' : 'error',
+            $count > 0
+                ? "Zaktualizowano dane z rejestrów ({$count} wpisów)."
+                : 'Nie udało się pobrać danych z rejestrów: ' . implode('; ', $result['errors']));
+        $this->redirect("/office/clients/{$clientId}/registers");
+    }
+
+    public function clientCrbrRefresh(string $id): void
+    {
+        if (!$this->validateCsrf()) {
+            $this->redirect('/office/clients');
+            return;
+        }
+        // CRBR includes PESEL of beneficial owners — office admin only,
+        // never office_employee. Defense in depth (sidebar / button is
+        // also gated, but check at controller layer too).
+        if (!Auth::isOffice()) {
+            Session::flash('error', 'CRBR jest dostępne tylko dla administratora biura.');
+            $this->redirect("/office/clients/{$id}/registers");
+            return;
+        }
+
+        $clientId = (int) $id;
+        $client = $this->requireClientForOffice($clientId, '/office/clients');
+        if ($client === null) return;
+
+        $nip = preg_replace('/[^0-9]/', '', $client['nip'] ?? '');
+        if (strlen($nip) !== 10) {
+            Session::flash('error', 'Klient nie ma poprawnego NIP do weryfikacji w CRBR.');
+            $this->redirect("/office/clients/{$clientId}/registers");
+            return;
+        }
+
+        [$actorType, $actorId] = $this->actorIdentity();
+        $orchestrator = new \App\Services\CompanyLookupService();
+        $crbr = $orchestrator->lookupCrbr($nip, [
+            'client_id'   => $clientId,
+            'target_type' => 'client',
+            'target_id'   => $clientId,
+            'actor_type'  => $actorType,
+            'actor_id'    => $actorId,
+        ]);
+
+        AuditLog::log($actorType, $actorId, 'crbr_lookup',
+            "client #{$clientId} — " . ($crbr ? 'ok' : 'no data'), 'client'
+        );
+
+        Session::flash($crbr ? 'success' : 'error',
+            $crbr
+                ? 'Pobrano dane CRBR (beneficjenci rzeczywiści).'
+                : 'Brak danych w CRBR dla tego NIP.');
+        $this->redirect("/office/clients/{$clientId}/registers");
+    }
+
+    public function contractorRegisters(string $clientId, string $contractorId): void
+    {
+        $cid = (int) $clientId;
+        $kid = (int) $contractorId;
+        $client = $this->requireClientForOffice($cid, '/office/clients');
+        if ($client === null) return;
+
+        $contractor = \App\Models\Contractor::findByIdForClient($kid, $cid);
+        if (!$contractor) {
+            $this->redirect("/office/clients/{$cid}");
+            return;
+        }
+
+        $notes = \App\Models\ClientExternalNote::findHistoryForOffice(
+            'contractor', $kid, (int) Session::get('office_id'), 100
+        );
+
+        $this->render('office/client_registers', [
+            'client' => $client,
+            'contractor' => $contractor,
+            'notes'  => $notes,
+            'target_type' => 'contractor',
+            'target_id'   => $kid,
+            'is_office_admin' => Auth::isOffice(),
+        ]);
+    }
+
+    public function contractorRegistersRefresh(string $clientId, string $contractorId): void
+    {
+        if (!$this->validateCsrf()) {
+            $this->redirect('/office/clients');
+            return;
+        }
+        $cid = (int) $clientId;
+        $kid = (int) $contractorId;
+        $client = $this->requireClientForOffice($cid, '/office/clients');
+        if ($client === null) return;
+
+        $contractor = \App\Models\Contractor::findByIdForClient($kid, $cid);
+        if (!$contractor) {
+            $this->redirect("/office/clients/{$cid}");
+            return;
+        }
+
+        $nip = preg_replace('/[^0-9]/', '', $contractor['nip'] ?? '');
+        if (strlen($nip) !== 10) {
+            Session::flash('error', 'Kontrahent nie ma poprawnego NIP.');
+            $this->redirect("/office/clients/{$cid}/contractors/{$kid}/registers");
+            return;
+        }
+
+        [$actorType, $actorId] = $this->actorIdentity();
+        $orchestrator = new \App\Services\CompanyLookupService();
+        $result = $orchestrator->enrichedLookup($nip, [
+            'client_id'   => $cid,
+            'target_type' => 'contractor',
+            'target_id'   => $kid,
+            'actor_type'  => $actorType,
+            'actor_id'    => $actorId,
+        ]);
+
+        AuditLog::log($actorType, $actorId, 'registers_refresh',
+            "contractor #{$kid} (client #{$cid})", 'contractor'
+        );
+
+        $count = count($result['notes_created']);
+        Session::flash($count > 0 ? 'success' : 'error',
+            $count > 0
+                ? "Zaktualizowano dane z rejestrów ({$count} wpisów)."
+                : 'Nie udało się pobrać danych: ' . implode('; ', $result['errors']));
+        $this->redirect("/office/clients/{$cid}/contractors/{$kid}/registers");
+    }
+
+    /**
+     * Returns [actor_type, actor_id] for AuditLog and ClientExternalNote.
+     * 'office' for the office admin; 'office_employee' for the staff member.
+     */
+    private function actorIdentity(): array
+    {
+        if (Auth::isEmployee()) {
+            return ['office_employee', (int) Session::get('employee_id')];
+        }
+        return ['office', (int) Session::get('office_id')];
+    }
+
     // ── VAT Settlement per client ────────────────────────
 
     public function clientVatSettlement(string $id): void
