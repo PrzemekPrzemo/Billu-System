@@ -24,7 +24,7 @@ final class EmailMaskTest extends TestCase
     public function testMasksLocalPartButKeepsDomain(): void
     {
         self::assertSame('a*@example.com', self::mask('ab@example.com'));
-        self::assertSame('a***@example.com', self::mask('alice@example.com'));
+        self::assertSame('a****@example.com', self::mask('alice@example.com'));
     }
 
     public function testHandlesShortLocalPart(): void
@@ -41,7 +41,7 @@ final class EmailMaskTest extends TestCase
 
     public function testPreservesSubdomainInDomain(): void
     {
-        self::assertSame('j****@mail.corp.example.com', self::mask('jdoe@mail.corp.example.com'));
+        self::assertSame('j***@mail.corp.example.com', self::mask('jdoe@mail.corp.example.com'));
     }
 
     public function testDoesNotLeakPlainAddress(): void
