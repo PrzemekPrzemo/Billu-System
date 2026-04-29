@@ -7,7 +7,7 @@
  * @var int    $target_id
  * @var bool   $is_office_admin
  */
-$csrf = \App\Core\Session::token();
+$csrf = \App\Core\Session::generateCsrfToken();
 $isContractor = ($target_type === 'contractor');
 $backUrl = $isContractor
     ? "/office/clients/{$client['id']}"
