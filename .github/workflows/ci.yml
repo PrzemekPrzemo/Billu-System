@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: mbstring, intl, pdo_mysql, json, openssl, curl, zip, gd
           coverage: none
           tools: composer:v2
@@ -35,7 +35,30 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run security test suite
-        run: vendor/bin/phpunit --testsuite security
+        run: |
+          set -o pipefail
+          vendor/bin/phpunit --testsuite security --testdox 2>&1 | tee phpunit-output.txt
+
+      - name: Surface PHPUnit output on failure
+        if: failure()
+        run: |
+          echo "## PHPUnit failure log" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -200 phpunit-output.txt >> "$GITHUB_STEP_SUMMARY" || echo "(no phpunit-output.txt)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "## composer.lock packages (PHP req)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          php -v >> "$GITHUB_STEP_SUMMARY"
+          composer show --installed 2>&1 | head -40 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload PHPUnit output as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpunit-output
+          path: phpunit-output.txt
+          if-no-files-found: ignore
 
   lint:
     name: PHP lint
@@ -43,10 +66,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
+      - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           coverage: none
 
       - name: Syntax check (php -l) on src/ and tests/
