@@ -1442,6 +1442,66 @@ class AdminController extends Controller
         $this->render('admin/settings', ['values' => $values, 'activeSessions' => $activeSessions]);
     }
 
+    /**
+     * Dedicated API configuration page — extracted from /admin/settings
+     * for clarity. Same Setting model under the hood; the save handler
+     * (apiSettingsUpdate) only touches API-specific keys.
+     */
+    public function apiSettings(): void
+    {
+        $rows = Setting::getAll();
+        $values = [];
+        foreach ($rows as $row) {
+            $values[$row['setting_key']] = $row['setting_value'];
+        }
+
+        $activeSessions = 0;
+        try {
+            $db = \App\Core\Database::getInstance();
+            $row = $db->fetchOne(
+                "SELECT COUNT(*) AS cnt FROM api_tokens WHERE revoked_at IS NULL AND expires_at > NOW()"
+            );
+            $activeSessions = (int) ($row['cnt'] ?? 0);
+        } catch (\Throwable) {
+            // api_tokens may not exist yet
+        }
+
+        $this->render('admin/api_settings', ['values' => $values, 'activeSessions' => $activeSessions]);
+    }
+
+    /**
+     * Save handler for /admin/api-settings — narrower allowlist than
+     * settingsUpdate so generic settings cannot accidentally be cleared
+     * from this form.
+     */
+    public function apiSettingsUpdate(): void
+    {
+        if (!$this->validateCsrf()) { $this->redirect('/admin/api-settings'); return; }
+
+        $allowed = [
+            'gus_api_key', 'gus_api_url', 'gus_api_env',
+            'ceidg_api_token', 'ceidg_api_url', 'ceidg_api_env',
+            'whitelist_api_url', 'whitelist_check_enabled',
+            'ksef_api_url', 'ksef_api_env', 'ksef_nip',
+            'mobile_api_enabled',
+        ];
+
+        // Checkbox: when unchecked it is NOT in $_POST, so default to '0'.
+        if (!isset($_POST['mobile_api_enabled'])) {
+            Setting::set('mobile_api_enabled', '0');
+        }
+
+        foreach ($allowed as $key) {
+            if (isset($_POST[$key])) {
+                Setting::set($key, $_POST[$key]);
+            }
+        }
+
+        AuditLog::log('admin', Auth::currentUserId(), 'api_settings_updated', 'API configuration updated');
+        Session::flash('success', 'settings_updated');
+        $this->redirect('/admin/api-settings');
+    }
+
     public function settingsUpdate(): void
     {
         if (!$this->validateCsrf()) { $this->redirect('/admin/settings'); return; }
