@@ -11,7 +11,7 @@
     <title><?= htmlspecialchars($branding['system_name'] ?? 'BiLLU') ?></title>
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/assets/img/icon-192.png">
+    <link rel="apple-touch-icon" href="/assets/img/favicon.svg">
     <script>if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
