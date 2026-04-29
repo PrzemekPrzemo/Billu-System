@@ -276,6 +276,173 @@ class AuditLog
         );
     }
 
+    /**
+     * Master-admin activity-log query — superset of searchPaginated with
+     * user_type / entity_type / keyword filters. Returns ['rows' => [...],
+     * 'total' => N, 'page' => N, 'pages' => N] for the standard paginator.
+     *
+     * Filters (all optional):
+     *   user_type   — 'admin' | 'office' | 'employee' | 'client' | 'client_employee' | 'system'
+     *   action      — prefix LIKE (uses idx_audit_action_created)
+     *   entity_type — exact match
+     *   date_from / date_to — 'YYYY-MM-DD'
+     *   keyword     — substring search in details / action
+     *
+     * @param array<string,mixed> $filters
+     */
+    public static function searchActivityLog(array $filters, int $page = 1, int $pageSize = 50): array
+    {
+        $where  = ' WHERE 1=1';
+        $params = [];
+
+        if (!empty($filters['user_type'])) {
+            $where .= ' AND user_type = ?';
+            $params[] = (string) $filters['user_type'];
+        }
+        if (!empty($filters['action'])) {
+            $where .= ' AND action LIKE ?';
+            $params[] = ((string) $filters['action']) . '%';
+        }
+        if (!empty($filters['entity_type'])) {
+            $where .= ' AND entity_type = ?';
+            $params[] = (string) $filters['entity_type'];
+        }
+        if (!empty($filters['date_from'])) {
+            $where .= ' AND created_at >= ?';
+            $params[] = ((string) $filters['date_from']) . ' 00:00:00';
+        }
+        if (!empty($filters['date_to'])) {
+            $where .= ' AND created_at <= ?';
+            $params[] = ((string) $filters['date_to']) . ' 23:59:59';
+        }
+        if (!empty($filters['keyword'])) {
+            $where .= ' AND (details LIKE ? OR action LIKE ?)';
+            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], (string) $filters['keyword']) . '%';
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        $page     = max(1, (int) $page);
+        $pageSize = max(10, min(200, (int) $pageSize));
+        $offset   = ($page - 1) * $pageSize;
+
+        $db = Database::getInstance();
+        $countRow = $db->fetchOne("SELECT COUNT(*) AS cnt FROM audit_log{$where}", $params);
+        $total = (int) ($countRow['cnt'] ?? 0);
+
+        $rowParams = $params;
+        $rowParams[] = $pageSize;
+        $rowParams[] = $offset;
+
+        // Two-step (covering subquery) — same trick as searchPaginated for
+        // deep offsets to use idx_audit_action_created when filtered by action.
+        $rows = $db->fetchAll(
+            "SELECT a.* FROM audit_log a
+                 JOIN (
+                     SELECT id FROM audit_log{$where}
+                     ORDER BY created_at DESC, id DESC
+                     LIMIT ? OFFSET ?
+                 ) sub ON sub.id = a.id
+              ORDER BY a.created_at DESC, a.id DESC",
+            $rowParams
+        );
+
+        return [
+            'rows'  => $rows,
+            'total' => $total,
+            'page'  => $page,
+            'pages' => max(1, (int) ceil($total / $pageSize)),
+            'page_size' => $pageSize,
+        ];
+    }
+
+    /**
+     * Resolves (user_type, user_id) tuples to display names by batching
+     * queries per role table. Returns a map keyed by "{type}:{id}".
+     * Used by the activity-log view so 200 audit rows produce at most
+     * 5 SELECTs (one per role) instead of N+1 lookups.
+     *
+     * @param array<int,array{user_type:string,user_id:int}> $rows audit-log rows
+     * @return array<string,string>
+     */
+    public static function resolveActorNames(array $rows): array
+    {
+        $byType = [];
+        foreach ($rows as $r) {
+            $t = (string) ($r['user_type'] ?? '');
+            $i = (int)    ($r['user_id']   ?? 0);
+            if ($t === '' || $i === 0) {
+                continue;
+            }
+            $byType[$t][$i] = true;
+        }
+
+        $names = [];
+        $db = Database::getInstance();
+        $tables = [
+            'admin'           => ['users',             'name',          'email'],
+            'office'          => ['offices',           'name',          'email'],
+            'employee'        => ['office_employees',  'name',          'email'],
+            'client'          => ['clients',           'company_name',  'email'],
+            'client_employee' => ['client_employees',  null,            'email'], // composite name
+        ];
+
+        foreach ($byType as $type => $idsMap) {
+            if (!isset($tables[$type])) {
+                continue;
+            }
+            [$table, $nameCol, $emailCol] = $tables[$type];
+            $ids = array_keys($idsMap);
+            if (empty($ids)) {
+                continue;
+            }
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $select = $nameCol
+                ? "id, {$nameCol} AS display_name, {$emailCol} AS email"
+                : "id, CONCAT(first_name, ' ', last_name) AS display_name, {$emailCol} AS email";
+            try {
+                $found = $db->fetchAll(
+                    "SELECT {$select} FROM {$table} WHERE id IN ({$placeholders})",
+                    $ids
+                );
+                foreach ($found as $row) {
+                    $key = $type . ':' . (int) $row['id'];
+                    $label = trim((string) ($row['display_name'] ?? '')) ?: (string) ($row['email'] ?? '');
+                    $names[$key] = $label !== '' ? $label : '(bez nazwy)';
+                }
+            } catch (\Throwable) {
+                // Table missing or schema mismatch — fall through, label will be "{type} #id".
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * Distinct values currently present in audit_log for filter dropdowns.
+     * Cheap query thanks to idx_audit_action_created (action) + small
+     * cardinality (user_type / entity_type usually <20 distinct values).
+     */
+    public static function distinctValues(): array
+    {
+        $db = Database::getInstance();
+        try {
+            return [
+                'user_types'   => array_column($db->fetchAll(
+                    "SELECT DISTINCT user_type FROM audit_log
+                      WHERE user_type IS NOT NULL AND user_type <> ''
+                      ORDER BY user_type"
+                ), 'user_type'),
+                'entity_types' => array_column($db->fetchAll(
+                    "SELECT DISTINCT entity_type FROM audit_log
+                      WHERE entity_type IS NOT NULL AND entity_type <> ''
+                      ORDER BY entity_type"
+                ), 'entity_type'),
+            ];
+        } catch (\Throwable) {
+            return ['user_types' => [], 'entity_types' => []];
+        }
+    }
+
     public static function getLoginHistory(int $limit = 100): array
     {
         return Database::getInstance()->fetchAll(

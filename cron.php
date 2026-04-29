@@ -108,19 +108,11 @@ foreach ($nbp['errors'] as $err) {
     echo "  ERROR: {$err}\n";
 }
 
-// 12. Archive audit_log entries older than 24 months (1st of month only)
-if (date('j') === '1') {
-    echo "Archiving old audit_log entries...\n";
-    $audit = CronService::archiveAuditLog(24);
-    echo "  Archived: {$audit['archived']}, Deleted: {$audit['deleted']}";
-    if (!empty($audit['file'])) {
-        echo ", File: {$audit['file']}";
-    }
-    echo "\n";
-    foreach ($audit['errors'] as $err) {
-        echo "  ERROR: {$err}\n";
-    }
-}
+// 12. (Retired) Monthly audit_log archive to JSONL.gz.
+//     Retention is now 37 days (enforced daily by step 5 in cleanupOldData),
+//     so the older "archive everything past 24 months" pass has nothing
+//     to do. Kept the CronService::archiveAuditLog method available for
+//     ad-hoc operator use, but no longer scheduled.
 
 // 13. Cleanup expired trusted-device tokens
 echo "Cleaning up expired trusted devices...\n";

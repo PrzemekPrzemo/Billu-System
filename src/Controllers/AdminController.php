@@ -2439,6 +2439,43 @@ class AdminController extends Controller
         $this->redirect('/admin/duplicates');
     }
 
+    // ── Activity log (full audit trail across tenants) ───────────────────
+
+    public function activityLog(): void
+    {
+        $filters = [
+            'user_type'   => trim((string) ($_GET['user_type']   ?? '')),
+            'action'      => trim((string) ($_GET['action']      ?? '')),
+            'entity_type' => trim((string) ($_GET['entity_type'] ?? '')),
+            'date_from'   => trim((string) ($_GET['date_from']   ?? '')),
+            'date_to'     => trim((string) ($_GET['date_to']     ?? '')),
+            'keyword'     => trim((string) ($_GET['keyword']     ?? '')),
+        ];
+
+        // Sanitize date inputs against accidental format injection.
+        foreach (['date_from', 'date_to'] as $k) {
+            if ($filters[$k] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters[$k])) {
+                $filters[$k] = '';
+            }
+        }
+
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $result = AuditLog::searchActivityLog($filters, $page, 50);
+        $names  = AuditLog::resolveActorNames($result['rows']);
+        $facets = AuditLog::distinctValues();
+
+        $this->render('admin/activity_log', [
+            'rows'        => $result['rows'],
+            'total'       => $result['total'],
+            'page'        => $result['page'],
+            'pages'       => $result['pages'],
+            'page_size'   => $result['page_size'],
+            'filters'     => $filters,
+            'actor_names' => $names,
+            'facets'      => $facets,
+        ]);
+    }
+
     // ── Analytics ────────────────────────────────────────────────────────
 
     public function analytics(): void
