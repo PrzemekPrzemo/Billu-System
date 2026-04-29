@@ -224,7 +224,7 @@ return [
     'i_accept_privacy'         => 'Akceptuję politykę prywatności',
     'accept_button'            => 'Zaakceptuj i kontynuuj',
     'privacy_accepted'         => 'Polityka prywatności została zaakceptowana.',
-    'system_description'       => 'Witamy w systemie akceptacji i odrzucania faktur kosztowych przechodzących przez system KSeF',
+    'system_description'       => 'Witamy w systemie księgowo-kadrowym',
 
     // Offices
     'offices'                  => 'Biura księgowe',

@@ -224,7 +224,7 @@ return [
     'i_accept_privacy'         => 'I accept the privacy policy',
     'accept_button'            => 'Accept and continue',
     'privacy_accepted'         => 'Privacy policy has been accepted.',
-    'system_description'       => 'Welcome to the cost invoice acceptance and rejection system via KSeF',
+    'system_description'       => 'Welcome to the accounting & HR system',
 
     // Offices
     'offices'                  => 'Accounting offices',
