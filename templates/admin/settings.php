@@ -239,7 +239,7 @@
             <?php if (!empty($values['logo'])): ?>
                 <small class="form-hint"><?= $lang('current') ?>: <?= htmlspecialchars($values['logo']) ?></small>
             <?php endif; ?>
-            <small class="form-hint">Logo wyswietlane w sidebarze w trybie jasnym</small>
+            <small class="form-hint">Logo wyswietlane w topbarze w trybie jasnym. <strong>Wymagane: przezroczyste tlo</strong> (PNG z kanalem alpha lub SVG) - JPG nie obsluguje przezroczystosci.</small>
         </div>
 
         <div class="form-group">
@@ -248,7 +248,7 @@
             <?php if (!empty($values['logo_dark'])): ?>
                 <small class="form-hint"><?= $lang('current') ?>: <?= htmlspecialchars($values['logo_dark']) ?></small>
             <?php endif; ?>
-            <small class="form-hint">Logo wyswietlane w sidebarze w trybie ciemnym. Jesli puste, uzyje logo jasnego.</small>
+            <small class="form-hint">Logo wyswietlane w trybie ciemnym. <strong>Uzyj jasnej / bialej wersji logo</strong> - logo z ciemnymi literami zniknie na ciemnym tle. Jesli puste, system uzyje wariantu jasnego (moze byc nieczytelne).</small>
         </div>
 
         <div class="form-group">

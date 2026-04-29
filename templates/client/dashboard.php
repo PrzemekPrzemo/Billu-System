@@ -78,6 +78,11 @@
             </div>
             <h3><?= $lang('assigned_employee') ?></h3>
         </div>
+        <?php if (!empty($officeBranding['logo_path'])): ?>
+            <div style="margin-bottom:8px; opacity:0.9;">
+                <img src="<?= htmlspecialchars($officeBranding['logo_path']) ?>" alt="" style="max-height:28px; max-width:140px; object-fit:contain; background:transparent;">
+            </div>
+        <?php endif; ?>
         <?php foreach ($assignedEmployees as $empIdx => $emp): ?>
             <?php if ($empIdx > 0): ?>
                 <hr style="border:none; border-top:1px solid var(--gray-200); margin:10px 0;">
@@ -110,6 +115,11 @@
             </div>
             <h3><?= $lang('tech_support') ?></h3>
         </div>
+        <?php if (!empty($officeBranding['logo_path'])): ?>
+            <div style="margin-bottom:8px; opacity:0.9;">
+                <img src="<?= htmlspecialchars($officeBranding['logo_path']) ?>" alt="" style="max-height:28px; max-width:140px; object-fit:contain; background:transparent;">
+            </div>
+        <?php endif; ?>
         <?php if (!empty($supportContact['name'])): ?>
         <div class="contact-card-name"><?= htmlspecialchars($supportContact['name']) ?></div>
         <?php endif; ?>

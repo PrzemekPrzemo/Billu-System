@@ -113,8 +113,8 @@ body {
 .sidebar-logo-text { font-size: 10px; font-weight: 600; color: #757575; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
 
 /* Topbar logo (replaces the sidebar one). Lives next to the burger button. */
-.topbar-logo { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
-.topbar-logo img { height: 32px; width: auto; max-width: 140px; object-fit: contain; }
+.topbar-logo { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; background: transparent; }
+.topbar-logo img { height: 32px; width: auto; max-width: 140px; object-fit: contain; background: transparent; }
 .topbar-logo-light { display: block; }
 .topbar-logo-dark  { display: none; }
 [data-theme="dark"] .topbar-logo-light { display: none; }
@@ -911,6 +911,18 @@ body {
 [data-theme="dark"] .filter-bar,
 [data-theme="dark"] .bulk-bar,
 [data-theme="dark"] .contact-card { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
+
+/* Logo containers MUST stay transparent in every theme so a PNG with
+   alpha channel doesn't end up rendered against a white inherited bg. */
+.auth-logo, .auth-logo img,
+.sidebar-logo, .sidebar-logo img,
+.topbar-logo, .topbar-logo img { background: transparent !important; }
+[data-theme="dark"] .auth-logo,
+[data-theme="dark"] .auth-logo img,
+[data-theme="dark"] .sidebar-logo,
+[data-theme="dark"] .sidebar-logo img,
+[data-theme="dark"] .topbar-logo,
+[data-theme="dark"] .topbar-logo img { background: transparent !important; }
 [data-theme="dark"] .notif-unread { background: #1A3D4A; }
 [data-theme="dark"] .form-input, [data-theme="dark"] .form-select, [data-theme="dark"] select.form-input { background: #0B2430; color: #D9D9D9; border-color: #2D4551; }
 [data-theme="dark"] .table { background: #162E3A; border-color: #2D4551; }
