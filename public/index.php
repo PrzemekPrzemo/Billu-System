@@ -277,6 +277,12 @@ $router->post('/office/clients/{id}/status', [OfficeController::class, 'clientSt
 $router->get('/office/clients/{id}/notes', [OfficeController::class, 'clientNotes']);
 $router->post('/office/clients/{id}/notes', [OfficeController::class, 'clientNotesSave']);
 $router->post('/office/clients/{id}/notes/toggle-pin', [OfficeController::class, 'clientNoteTogglePin']);
+// External register notes (GUS/KRS/CEIDG/CRBR) — office-only.
+$router->get('/office/clients/{id}/registers', [OfficeController::class, 'clientRegisters']);
+$router->post('/office/clients/{id}/registers/refresh', [OfficeController::class, 'clientRegistersRefresh']);
+$router->post('/office/clients/{id}/crbr/refresh', [OfficeController::class, 'clientCrbrRefresh']);
+$router->get('/office/clients/{id}/contractors/{contractorId}/registers', [OfficeController::class, 'contractorRegisters']);
+$router->post('/office/clients/{id}/contractors/{contractorId}/registers/refresh', [OfficeController::class, 'contractorRegistersRefresh']);
 $router->get('/office/clients/{id}/vat-settlement', [OfficeController::class, 'clientVatSettlement']);
 
 // Office: Client File sharing
