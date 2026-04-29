@@ -9,7 +9,7 @@
                        value="<?= htmlspecialchars($nip) ?>" placeholder="0000000000" maxlength="10" pattern="[0-9]{10}">
             </div>
             <button type="submit" class="btn btn-primary"><?= $lang('ksef_run_diagnostics') ?></button>
-            <a href="/admin/settings" class="btn btn-secondary"><?= $lang('gus_settings') ?></a>
+            <a href="/admin/api-settings" class="btn btn-secondary"><?= $lang('gus_settings') ?></a>
         </form>
 
         <h2 style="margin-top:0;">Wyniki diagnostyki GUS API</h2>
@@ -70,5 +70,5 @@ function copyLog() {
 <?php endif; ?>
 
 <div style="margin-top:16px;">
-    <a href="/admin/settings" class="btn btn-secondary"><?= $lang('back') ?></a>
+    <a href="/admin/api-settings" class="btn btn-secondary"><?= $lang('back') ?></a>
 </div>

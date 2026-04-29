@@ -1,7 +1,7 @@
 <div class="section-header">
     <h1><?= $lang('api_sessions') ?></h1>
     <div>
-        <a href="/admin/settings#mobile-api" class="btn btn-secondary btn-sm">
+        <a href="/admin/api-settings" class="btn btn-secondary btn-sm">
             &larr; <?= $lang('back_to_settings') ?>
         </a>
     </div>
