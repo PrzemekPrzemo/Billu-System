@@ -164,7 +164,7 @@ else
     COMPOSER_BIN="composer"
 fi
 
-$COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction 2>&1
+$COMPOSER_BIN install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction 2>&1
 echo -e "  ${GREEN}Zależności zainstalowane.${NC}"
 
 # ── Konfiguracja bazy danych ─────────────────────────

@@ -181,7 +181,7 @@ class AdminController extends Controller
         $oldOffice = Office::findById((int) $id);
         $deactivatingOffice = ($oldOffice && $oldOffice['is_active'] && $data['is_active'] === 0);
 
-        Office::update((int) $id, $data);
+        Office::update((int) $id, $data, Office::adminAllowedFields());
 
         if ($deactivatingOffice) {
             $deactivatedCount = Office::deactivateClients((int) $id);
@@ -631,7 +631,7 @@ class AdminController extends Controller
             $data['password_changed_at'] = date('Y-m-d H:i:s');
         }
 
-        Client::update((int) $id, $data);
+        Client::update((int) $id, $data, Client::adminAllowedFields());
 
         if ($data['has_cost_centers']) {
             $ccNames = $_POST['cost_center_names'] ?? [];
@@ -1430,7 +1430,7 @@ class AdminController extends Controller
             'ksef_api_url', 'ksef_api_env', 'ksef_nip', 'ksef_auto_import_day',
             'system_name', 'system_description', 'primary_color', 'secondary_color', 'accent_color',
             'privacy_policy_enabled', 'privacy_policy_text',
-            '2fa_enabled', '2fa_required', '2fa_required_admin',
+            '2fa_enabled', '2fa_required', '2fa_required_admin', '2fa_required_client', '2fa_required_office',
             'support_contact_name', 'support_contact_email', 'support_contact_phone',
             'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_user', 'smtp_from_email', 'smtp_from_name',
             'mobile_api_enabled',

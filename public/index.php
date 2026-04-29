@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Core\Cache;
 use App\Core\Session;
 use App\Core\Router;
 use App\Core\Language;
@@ -15,6 +16,9 @@ use App\Controllers\OfficeController;
 // Config
 $appConfig = require __DIR__ . '/../config/app.php';
 date_default_timezone_set($appConfig['timezone']);
+
+// Cache (Redis with no-op fallback)
+Cache::init(require __DIR__ . '/../config/cache.php');
 
 // Security headers (PHP fallback when mod_headers unavailable)
 header('X-Frame-Options: SAMEORIGIN');
@@ -66,6 +70,24 @@ $router->post('/two-factor-verify', [AuthController::class, 'twoFactorVerify']);
 $router->get('/two-factor-setup', [AuthController::class, 'twoFactorSetupForm']);
 $router->post('/two-factor-setup', [AuthController::class, 'twoFactorEnable']);
 $router->get('/two-factor-recovery', [AuthController::class, 'twoFactorRecovery']);
+
+// Client-employee authentication & activation
+$router->get('/employee/login', [AuthController::class, 'clientEmployeeLoginForm']);
+$router->post('/employee/login', [AuthController::class, 'clientEmployeeLogin']);
+$router->get('/employee/logout', [AuthController::class, 'clientEmployeeLogout']);
+$router->get('/employee/activate', [AuthController::class, 'employeeActivateForm']);
+$router->post('/employee/activate', [AuthController::class, 'employeeActivate']);
+
+// Client-employee self-service panel
+$router->get('/employee', [\App\Controllers\EmployeeController::class, 'dashboard']);
+$router->get('/employee/profile', [\App\Controllers\EmployeeController::class, 'profile']);
+$router->get('/employee/change-password', [\App\Controllers\EmployeeController::class, 'changePasswordForm']);
+$router->post('/employee/change-password', [\App\Controllers\EmployeeController::class, 'changePassword']);
+$router->get('/employee/payslips', [\App\Controllers\EmployeeController::class, 'payslips']);
+$router->get('/employee/payslips/{id}/pdf', [\App\Controllers\EmployeeController::class, 'payslipPdf']);
+$router->get('/employee/leaves', [\App\Controllers\EmployeeController::class, 'leaves']);
+$router->get('/employee/leaves/request', [\App\Controllers\EmployeeController::class, 'leaveRequestForm']);
+$router->post('/employee/leaves/request', [\App\Controllers\EmployeeController::class, 'leaveRequest']);
 $router->post('/two-factor-disable', [AuthController::class, 'twoFactorDisable']);
 
 // ── Admin Routes (/admin) ──────────────────────────
@@ -361,6 +383,12 @@ $router->get('/client/calculators', [ClientController::class, 'calculators']);
 
 // Client: HR / Kadry i Płace (read-only + leave requests)
 $router->get('/client/hr/employees', [ClientController::class, 'hrEmployees']);
+$router->get('/client/hr/employees/create', [ClientController::class, 'hrEmployeeCreateForm']);
+$router->post('/client/hr/employees/create', [ClientController::class, 'hrEmployeeStore']);
+$router->get('/client/hr/employees/{id}/edit', [ClientController::class, 'hrEmployeeEditForm']);
+$router->post('/client/hr/employees/{id}/update', [ClientController::class, 'hrEmployeeUpdate']);
+$router->post('/client/hr/employees/{id}/delete', [ClientController::class, 'hrEmployeeDelete']);
+$router->post('/client/hr/employees/{id}/resend-invitation', [ClientController::class, 'hrEmployeeResendInvitation']);
 $router->get('/client/hr/payroll', [ClientController::class, 'hrPayrollLists']);
 $router->get('/client/hr/payroll/{id}', [ClientController::class, 'hrPayrollDetail']);
 $router->get('/client/hr/payroll/{id}/pdf', [ClientController::class, 'hrPayrollPdf']);

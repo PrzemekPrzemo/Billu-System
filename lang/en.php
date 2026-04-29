@@ -1825,12 +1825,17 @@ return [
     'module_cat_system'        => 'System',
 
     // HR / Payroll
+    'hr_module'                => 'HR & Payroll',
     'hr_dashboard'             => 'HR Dashboard',
     'hr_employees'             => 'Employees',
     'hr_employee_list'         => 'Employee List',
     'hr_employee_add'          => 'Add Employee',
     'hr_employee_edit'         => 'Edit Employee',
     'hr_employee_saved'        => 'Employee saved successfully',
+    'hr_employee_saved_invitation_sent' => 'Employee saved. Activation email sent.',
+    'hr_employee_deactivated'  => 'Employee deactivated.',
+    'hr_employee_invitation_sent' => 'Invitation sent.',
+    'hr_employee_invitation_unavailable' => 'Cannot send invitation — missing login email or account disabled.',
     'hr_contracts'             => 'Contracts',
     'hr_contract_add'          => 'Add Contract',
     'hr_contract_edit'         => 'Edit Contract',

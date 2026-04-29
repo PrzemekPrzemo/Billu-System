@@ -1,0 +1,28 @@
+; BiLLU production PHP runtime config (PHP 8.3+)
+; Skopiuj jako /etc/php/8.3/fpm/conf.d/99-billu.ini i zrestartuj php-fpm.
+; Zmień ścieżkę preload= na faktyczną ścieżkę instalacji aplikacji.
+
+; --- OPcache ---
+opcache.enable=1
+opcache.enable_cli=0
+opcache.memory_consumption=256
+opcache.interned_strings_buffer=32
+opcache.max_accelerated_files=20000
+opcache.validate_timestamps=0          ; w produkcji wyłączamy - reload PHP-FPM przy deployu
+opcache.save_comments=1                ; potrzebne dla niektórych adnotacji w bibliotekach
+opcache.preload=/var/www/billu/config/opcache-preload.php
+opcache.preload_user=www-data
+
+; --- JIT (PHP 8.3 stable) ---
+opcache.jit_buffer_size=128M
+opcache.jit=tracing                     ; alternatywa: function (mniej agresywne)
+
+; --- Realpath cache (mniej stat() na każdy include) ---
+realpath_cache_size=4096K
+realpath_cache_ttl=600
+
+; --- Sesje / upload limity (zgodne z importem faktur) ---
+upload_max_filesize=20M
+post_max_size=22M
+max_execution_time=120
+memory_limit=256M

@@ -424,6 +424,26 @@
                 <small class="form-hint"><?= $lang('2fa_require_admin_hint') ?></small>
             </div>
         </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">2FA wymagane dla biur</label>
+                <select name="2fa_required_office" class="form-input">
+                    <option value="1" <?= ($values['2fa_required_office'] ?? '0') === '1' ? 'selected' : '' ?>><?= $lang('yes') ?></option>
+                    <option value="0" <?= ($values['2fa_required_office'] ?? '0') === '0' ? 'selected' : '' ?>><?= $lang('no') ?></option>
+                </select>
+                <small class="form-hint">Wymusza konfigurację 2FA dla wszystkich kont biurowych przy następnym logowaniu.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">2FA wymagane dla klientów</label>
+                <select name="2fa_required_client" class="form-input">
+                    <option value="1" <?= ($values['2fa_required_client'] ?? '0') === '1' ? 'selected' : '' ?>><?= $lang('yes') ?></option>
+                    <option value="0" <?= ($values['2fa_required_client'] ?? '0') === '0' ? 'selected' : '' ?>><?= $lang('no') ?></option>
+                </select>
+                <small class="form-hint">Wymusza konfigurację 2FA dla wszystkich kont klienckich przy następnym logowaniu.</small>
+            </div>
+        </div>
     </div>
 
     <!-- Privacy Policy Settings -->

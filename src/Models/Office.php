@@ -6,9 +6,41 @@ use App\Core\Database;
 
 class Office
 {
+    /** Per-request memoization findById. */
+    private static array $memo = [];
+
+    /** Default mass-assignment whitelist. password_hash, is_demo, last_login_at need explicit override. */
+    public const FILLABLE = [
+        'name', 'nip', 'address', 'representative_name',
+        'email', 'phone', 'language', 'is_active',
+        'verification_deadline_day', 'auto_accept_on_deadline', 'notification_days_before',
+        'max_employees', 'max_clients',
+        'mobile_app_enabled', 'logo_path',
+    ];
+
+    public const ADMIN_FILLABLE = [
+        'is_demo',
+        'password_hash', 'password_changed_at',
+    ];
+
+    public static function adminAllowedFields(): array
+    {
+        return array_merge(self::FILLABLE, self::ADMIN_FILLABLE);
+    }
+
     public static function findById(int $id): ?array
     {
-        return Database::getInstance()->fetchOne("SELECT * FROM offices WHERE id = ?", [$id]);
+        if (array_key_exists($id, self::$memo)) {
+            return self::$memo[$id];
+        }
+        $row = Database::getInstance()->fetchOne("SELECT * FROM offices WHERE id = ?", [$id]);
+        self::$memo[$id] = $row;
+        return $row;
+    }
+
+    public static function flushMemo(): void
+    {
+        self::$memo = [];
     }
 
     public static function findByNip(string $nip): ?array
@@ -41,9 +73,16 @@ class Office
         return Database::getInstance()->insert('offices', $data);
     }
 
-    public static function update(int $id, array $data): int
+    public static function update(int $id, array $data, ?array $allowed = null): int
     {
-        return Database::getInstance()->update('offices', $data, 'id = ?', [$id]);
+        $whitelist = $allowed ?? self::FILLABLE;
+        $filtered = array_intersect_key($data, array_flip($whitelist));
+        if (empty($filtered)) {
+            return 0;
+        }
+        $rows = Database::getInstance()->update('offices', $filtered, 'id = ?', [$id]);
+        unset(self::$memo[$id]);
+        return $rows;
     }
 
     public static function updateLastLogin(int $id): void

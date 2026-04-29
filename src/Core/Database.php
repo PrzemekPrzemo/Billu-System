@@ -22,12 +22,20 @@ class Database
             $config['charset']
         );
 
+        $options = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_PERSISTENT         => true,
+        ];
+
+        if (!empty($config['ssl_ca'])) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = $config['ssl_ca'];
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = (bool) ($config['ssl_verify'] ?? true);
+        }
+
         try {
-            $this->pdo = new PDO($dsn, $config['username'], $config['password'], [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            $this->pdo = new PDO($dsn, $config['username'], $config['password'], $options);
         } catch (PDOException $e) {
             throw new PDOException('Błąd połączenia z bazą danych: ' . $e->getMessage());
         }
@@ -89,6 +97,52 @@ class Database
     public function lastInsertId(): int
     {
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Multi-row INSERT z jednym round-tripem do bazy. Zwraca liczbę zapisanych wierszy.
+     * Wszystkie wiersze muszą mieć ten sam zestaw kolumn (kolejność z pierwszego elementu).
+     *
+     * @param string $table
+     * @param array<int,array<string,mixed>> $rows
+     * @return int
+     */
+    public function bulkInsert(string $table, array $rows): int
+    {
+        if (empty($rows)) {
+            return 0;
+        }
+        $columns = array_keys($rows[0]);
+        if (empty($columns)) {
+            return 0;
+        }
+
+        $tableEsc = '`' . str_replace('`', '``', $table) . '`';
+        $colsEsc  = implode(', ', array_map(fn($c) => '`' . str_replace('`', '``', $c) . '`', $columns));
+        $rowPlaceholder = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
+        $placeholders = implode(', ', array_fill(0, count($rows), $rowPlaceholder));
+
+        $params = [];
+        foreach ($rows as $row) {
+            foreach ($columns as $col) {
+                $params[] = $row[$col] ?? null;
+            }
+        }
+
+        $sql = "INSERT INTO {$tableEsc} ({$colsEsc}) VALUES {$placeholders}";
+        $stmt = $this->query($sql, $params);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Diagnostyka: zwraca wynik EXPLAIN dla podanego zapytania.
+     * Używać tylko w trybie debug / lokalnie - może ujawniać strukturę bazy.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function explain(string $sql, array $params = []): array
+    {
+        return $this->fetchAll('EXPLAIN ' . $sql, $params);
     }
 
     public function beginTransaction(): void

@@ -2,10 +2,31 @@
 
 namespace App\Models;
 
+use App\Core\Cache;
 use App\Core\Database;
 
 class IssuedInvoice
 {
+    /** Fields never accepted from mass-assignment in default mode (cross-tenant or immutable). Use $allowed param to opt out. */
+    private const PROTECTED_FIELDS = ['id', 'client_id', 'created_at'];
+
+    /** Default user-controlled allowlist for invoice form submissions (ClientController, SalesInvoiceApiController). System services (PDF, KSeF, Mail) bypass via explicit $allowed. */
+    public const FILLABLE = [
+        'invoice_number', 'invoice_type', 'invoice_subtype',
+        'issue_date', 'sale_date', 'due_date',
+        'buyer_name', 'buyer_nip', 'buyer_address', 'buyer_email',
+        'seller_name', 'seller_nip', 'seller_address', 'seller_bank_account',
+        'net_amount', 'vat_amount', 'gross_amount',
+        'currency', 'currency_rate', 'net_amount_pln', 'vat_amount_pln',
+        'payment_method', 'payment_status', 'paid_at',
+        'line_items', 'vat_details', 'original_line_items',
+        'description', 'notes', 'status',
+        'contractor_id',
+        'advance_amount', 'advance_order_description',
+        'related_advance_ids',
+        'correction_reason', 'corrected_invoice_id',
+    ];
+
     public static function findById(int $id): ?array
     {
         return Database::getInstance()->fetchOne("SELECT * FROM issued_invoices WHERE id = ?", [$id]);
@@ -50,13 +71,26 @@ class IssuedInvoice
     public static function create(array $data): int
     {
         self::encodeJsonFields($data);
-        return Database::getInstance()->insert('issued_invoices', $data);
+        $id = Database::getInstance()->insert('issued_invoices', $data);
+        self::invalidateAgg(isset($data['client_id']) ? (int)$data['client_id'] : null);
+        return $id;
     }
 
-    public static function update(int $id, array $data): void
+    public static function update(int $id, array $data, ?array $allowed = null): void
     {
+        if ($allowed !== null) {
+            $data = array_intersect_key($data, array_flip($allowed));
+        } else {
+            foreach (self::PROTECTED_FIELDS as $field) {
+                unset($data[$field]);
+            }
+        }
+        if (empty($data)) {
+            return;
+        }
         self::encodeJsonFields($data);
         Database::getInstance()->update('issued_invoices', $data, 'id = ?', [$id]);
+        self::invalidateAgg(self::lookupClientId($id));
     }
 
     private static function encodeJsonFields(array &$data): void
@@ -75,6 +109,7 @@ class IssuedInvoice
     public static function updateStatus(int $id, string $status): void
     {
         Database::getInstance()->update('issued_invoices', ['status' => $status], 'id = ?', [$id]);
+        self::invalidateAgg(self::lookupClientId($id));
     }
 
     public static function updateKsefStatus(int $id, string $status, ?string $ref = null, ?string $error = null): void
@@ -110,10 +145,12 @@ class IssuedInvoice
 
     public static function delete(int $id): void
     {
+        $clientId = self::lookupClientId($id);
         Database::getInstance()->query(
             "DELETE FROM issued_invoices WHERE id = ? AND (status = 'draft' OR status = 'issued')",
             [$id]
         );
+        self::invalidateAgg($clientId);
     }
 
     public static function countByClient(int $clientId): array
@@ -141,7 +178,8 @@ class IssuedInvoice
 
     public static function getMonthlySales(int $clientId, int $months = 12): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "iss:client:{$clientId}:monthlySales:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT YEAR(issue_date) as year, MONTH(issue_date) as month,
                     SUM(net_amount) as net, SUM(vat_amount) as vat, SUM(gross_amount) as gross,
                     COUNT(*) as invoice_count
@@ -151,12 +189,13 @@ class IssuedInvoice
              GROUP BY YEAR(issue_date), MONTH(issue_date)
              ORDER BY year DESC, month DESC",
             [$clientId, $months]
-        );
+        ));
     }
 
     public static function getTopBuyers(int $clientId, int $limit = 10): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "iss:client:{$clientId}:topBuyers:{$limit}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT buyer_name, buyer_nip,
                     SUM(gross_amount) as total_gross,
                     COUNT(*) as invoice_count
@@ -166,7 +205,7 @@ class IssuedInvoice
              ORDER BY total_gross DESC
              LIMIT ?",
             [$clientId, $limit]
-        );
+        ));
     }
 
     public static function getVatSummary(int $clientId, int $month, int $year): array
@@ -276,11 +315,36 @@ class IssuedInvoice
 
     public static function getMonthlyCountAll(int $months = 6): array
     {
-        return Database::getInstance()->fetchAll(
+        $key = "iss:global:monthlyCountAll:{$months}";
+        return self::rememberAgg($key, fn() => Database::getInstance()->fetchAll(
             "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count, COALESCE(SUM(gross_amount), 0) as total_gross
              FROM issued_invoices WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
              GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month ASC",
             [$months]
+        ));
+    }
+
+    private static function rememberAgg(string $key, callable $producer): mixed
+    {
+        $cache = Cache::getInstance();
+        return $cache->remember($key, $cache->ttl('aggregate'), $producer);
+    }
+
+    private static function invalidateAgg(?int $clientId = null): void
+    {
+        $cache = Cache::getInstance();
+        $cache->flushTag('iss:global');
+        if ($clientId !== null && $clientId > 0) {
+            $cache->flushTag('iss:client:' . $clientId);
+        }
+    }
+
+    private static function lookupClientId(int $issuedInvoiceId): ?int
+    {
+        $row = Database::getInstance()->fetchOne(
+            "SELECT client_id FROM issued_invoices WHERE id = ?",
+            [$issuedInvoiceId]
         );
+        return $row ? (int)$row['client_id'] : null;
     }
 }

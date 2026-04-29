@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use App\Models\Client;
+use App\Models\ClientEmployee;
 use App\Models\Office;
 use App\Models\OfficeEmployee;
 use App\Models\User;
@@ -344,6 +345,73 @@ class Auth
         return true;
     }
 
+    /**
+     * Login a client-side employee (worker hired by a client of an office).
+     * Distinct from loginEmployee() which authenticates accounting-firm staff.
+     */
+    public static function loginClientEmployee(string $email, string $password): bool|string
+    {
+        $employee = ClientEmployee::findByLoginEmail($email);
+        if (!$employee) {
+            self::logLoginAttempt('client_employee', 0, false);
+            return false;
+        }
+        if (empty($employee['can_login']) || empty($employee['password_hash'])) {
+            self::logLoginAttempt('client_employee', $employee['id'], false);
+            return false;
+        }
+        if (!$employee['is_active'] || !$employee['client_is_active']) {
+            self::logLoginAttempt('client_employee', $employee['id'], false);
+            Session::flash('blocked_account_type', 'client_employee');
+            return 'account_deactivated';
+        }
+
+        if (!self::verifyPassword($password, $employee['password_hash'])) {
+            self::logLoginAttempt('client_employee', $employee['id'], false);
+            return false;
+        }
+
+        // 2FA verify (employee already has it enabled)
+        if (!empty($employee['two_factor_enabled'])) {
+            Session::set('2fa_pending_user_type', 'client_employee');
+            Session::set('2fa_pending_user_id', $employee['id']);
+            self::logLoginAttempt('client_employee', $employee['id'], true);
+            return 'require_2fa';
+        }
+
+        // 2FA enforcement (master admin turned 2fa_required_client_employee on)
+        if (self::is2faRequired('client_employee') && empty($employee['two_factor_enabled'])) {
+            Session::set('2fa_setup_user_type', 'client_employee');
+            Session::set('2fa_setup_user_id', $employee['id']);
+            self::logLoginAttempt('client_employee', $employee['id'], true);
+            return 'require_2fa_setup';
+        }
+
+        if (!empty($employee['force_password_change'])) {
+            Session::set('client_employee_id', $employee['id']);
+            Session::set('client_employee_client_id', $employee['client_id']);
+            Session::set('user_type', 'client_employee');
+            Session::set('force_password_change', true);
+            self::logLoginAttempt('client_employee', $employee['id'], true);
+            return 'force_password_change';
+        }
+
+        // Regenerate session ID to prevent fixation
+        session_regenerate_id(true);
+
+        Session::set('client_employee_id', $employee['id']);
+        Session::set('client_employee_client_id', $employee['client_id']);
+        Session::set('client_employee_office_id', $employee['office_id'] ?? null);
+        Session::set('client_employee_name', trim($employee['first_name'] . ' ' . $employee['last_name']));
+        Session::set('client_employee_company', $employee['company_name'] ?? '');
+        Session::set('user_type', 'client_employee');
+        Session::registerSession('client_employee', $employee['id']);
+
+        ClientEmployee::updateLastLogin($employee['id']);
+        self::logLoginAttempt('client_employee', $employee['id'], true);
+        return true;
+    }
+
     // ── Impersonation ──────────────────────────────
 
     public static function impersonate(string $targetType, int $targetId): bool
@@ -524,6 +592,11 @@ class Auth
         return Session::get('user_type') === 'employee';
     }
 
+    public static function isClientEmployee(): bool
+    {
+        return Session::get('user_type') === 'client_employee';
+    }
+
     public static function isOfficeOrEmployee(): bool
     {
         return self::isOffice() || self::isEmployee();
@@ -533,6 +606,18 @@ class Auth
     {
         if (!self::isLoggedIn() || !self::isAdmin()) {
             header('Location: /masterLogin');
+            exit;
+        }
+    }
+
+    public static function requireClientEmployee(): void
+    {
+        if (!self::isLoggedIn() || !self::isClientEmployee()) {
+            header('Location: /employee/login');
+            exit;
+        }
+        if (Session::get('force_password_change')) {
+            header('Location: /employee/change-password');
             exit;
         }
     }
@@ -653,13 +738,16 @@ class Auth
                 return false;
             }
 
-            if ($userType === 'admin') {
-                $required = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required_admin'");
-                return $required && $required['setting_value'] === '1';
+            // Per-type setting (2fa_required_admin / _client / _office) takes precedence.
+            $perTypeKey = '2fa_required_' . $userType;
+            $perType = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", [$perTypeKey]);
+            if ($perType && $perType['setting_value'] === '1') {
+                return true;
             }
 
-            $required = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required'");
-            return $required && $required['setting_value'] === '1';
+            // Fallback: global enforcement.
+            $global = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = '2fa_required'");
+            return $global && $global['setting_value'] === '1';
         } catch (\Exception $e) {
             return false;
         }

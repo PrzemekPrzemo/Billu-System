@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
+
 class ViesService
 {
     private const WSDL_URL = 'https://ec.europa.eu/taxation_customs/vies/checkVatService.wsdl';
@@ -13,6 +15,13 @@ class ViesService
 
         if (strlen($countryCode) !== 2) {
             return ['valid' => false, 'error' => 'Invalid country code'];
+        }
+
+        $cache = Cache::getInstance();
+        $cacheKey = 'vies:' . $countryCode . ':' . $vatNumber;
+        $cached = $cache->get($cacheKey);
+        if (is_array($cached) && !empty($cached['valid'])) {
+            return $cached;
         }
 
         try {
@@ -27,7 +36,7 @@ class ViesService
                 'vatNumber' => $vatNumber,
             ]);
 
-            return [
+            $payload = [
                 'valid' => (bool)$result->valid,
                 'country_code' => $result->countryCode ?? $countryCode,
                 'vat_number' => $result->vatNumber ?? $vatNumber,
@@ -36,6 +45,10 @@ class ViesService
                 'request_date' => $result->requestDate ?? date('Y-m-d'),
                 'error' => null,
             ];
+            if ($payload['valid']) {
+                $cache->set($cacheKey, $payload, $cache->ttl('vies'));
+            }
+            return $payload;
         } catch (\SoapFault $e) {
             $faultCode = $e->faultstring ?? $e->getMessage();
 

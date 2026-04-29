@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Core\Database;
-use App\Models\Invoice;
 use App\Models\InvoiceBatch;
 use App\Models\Setting;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -79,6 +78,8 @@ class ImportService
         }
 
         $db = Database::getInstance();
+        $existing = self::loadExistingDuplicateKeys($clientId);
+        $buffer   = [];
         $db->beginTransaction();
 
         try {
@@ -117,13 +118,15 @@ class ImportService
                 $cleanInvoiceNumber = trim($row['H']);
                 $cleanGrossAmount = self::parseAmount($row['N'] ?? 0);
 
-                if (self::isDuplicate($clientId, $cleanInvoiceNumber, $cleanSellerNip, $cleanGrossAmount)) {
+                $dupKey = self::dupKey($cleanInvoiceNumber, $cleanSellerNip, $cleanGrossAmount);
+                if (isset($existing[$dupKey])) {
                     $result['errors'][] = "Wiersz {$rowNum}: duplikat faktury {$cleanInvoiceNumber} (NIP: {$cleanSellerNip})";
                     $result['duplicates'] = ($result['duplicates'] ?? 0) + 1;
                     continue;
                 }
+                $existing[$dupKey] = true;
 
-                Invoice::create([
+                $buffer[] = [
                     'batch_id'       => $batchId,
                     'client_id'      => $clientId,
                     'seller_nip'     => $cleanSellerNip,
@@ -142,15 +145,23 @@ class ImportService
                     'gross_amount'   => $cleanGrossAmount,
                     'line_items'     => $lineItems,
                     'vat_details'    => $vatDetails,
-                ]);
-
+                ];
                 $result['success']++;
+
+                if (count($buffer) >= 500) {
+                    $db->bulkInsert('invoices', $buffer);
+                    $buffer = [];
+                }
             }
 
+            if (!empty($buffer)) {
+                $db->bulkInsert('invoices', $buffer);
+            }
             $db->commit();
         } catch (\Exception $e) {
             $db->rollBack();
             $result['errors'][] = 'db_error: ' . $e->getMessage();
+            $result['success']  = 0;
         }
 
         return $result;
@@ -215,6 +226,8 @@ class ImportService
         }
 
         $db = Database::getInstance();
+        $existing = self::loadExistingDuplicateKeys($clientId);
+        $buffer   = [];
         $db->beginTransaction();
 
         try {
@@ -243,13 +256,15 @@ class ImportService
                 $cleanInvoiceNumber = trim($cols[7]);
                 $cleanGrossAmount = self::parseAmount($cols[13] ?? 0);
 
-                if (self::isDuplicate($clientId, $cleanInvoiceNumber, $cleanSellerNip, $cleanGrossAmount)) {
+                $dupKey = self::dupKey($cleanInvoiceNumber, $cleanSellerNip, $cleanGrossAmount);
+                if (isset($existing[$dupKey])) {
                     $result['errors'][] = "Wiersz {$rowNum}: duplikat faktury {$cleanInvoiceNumber} (NIP: {$cleanSellerNip})";
                     $result['duplicates'] = ($result['duplicates'] ?? 0) + 1;
                     continue;
                 }
+                $existing[$dupKey] = true;
 
-                Invoice::create([
+                $buffer[] = [
                     'batch_id'       => $batchId,
                     'client_id'      => $clientId,
                     'seller_nip'     => $cleanSellerNip,
@@ -268,15 +283,23 @@ class ImportService
                     'gross_amount'   => $cleanGrossAmount,
                     'line_items'     => isset($cols[14]) && $cols[14] !== '' ? json_encode(['raw' => $cols[14]]) : null,
                     'vat_details'    => isset($cols[15]) && $cols[15] !== '' ? json_encode(['raw' => $cols[15]]) : null,
-                ]);
-
+                ];
                 $result['success']++;
+
+                if (count($buffer) >= 500) {
+                    $db->bulkInsert('invoices', $buffer);
+                    $buffer = [];
+                }
             }
 
+            if (!empty($buffer)) {
+                $db->bulkInsert('invoices', $buffer);
+            }
             $db->commit();
         } catch (\Exception $e) {
             $db->rollBack();
             $result['errors'][] = 'db_error: ' . $e->getMessage();
+            $result['success']  = 0;
         }
 
         return $result;
@@ -329,20 +352,34 @@ class ImportService
     }
 
     /**
-     * Check if an invoice with the same number, seller NIP, and gross amount
-     * already exists for this client.
+     * Wczytuje wszystkie istniejące tuple (invoice_number, seller_nip, gross_amount)
+     * dla klienta do tablicy-Setu. Pojedyncze zapytanie zamiast N zapytań w pętli.
+     *
+     * @return array<string,bool> klucz = "invoiceNumber|sellerNip|gross"
      */
-    private static function isDuplicate(int $clientId, string $invoiceNumber, string $sellerNip, float $grossAmount): bool
+    private static function loadExistingDuplicateKeys(int $clientId): array
     {
-        $db = Database::getInstance();
-        $existing = $db->fetchOne(
-            "SELECT i.id FROM invoices i
-             JOIN invoice_batches ib ON i.batch_id = ib.id
-             WHERE ib.client_id = ? AND i.invoice_number = ? AND i.seller_nip = ? AND i.gross_amount = ?
-             LIMIT 1",
-            [$clientId, $invoiceNumber, $sellerNip, $grossAmount]
+        $rows = Database::getInstance()->fetchAll(
+            "SELECT i.invoice_number, i.seller_nip, i.gross_amount
+               FROM invoices i
+               JOIN invoice_batches ib ON i.batch_id = ib.id
+              WHERE ib.client_id = ?",
+            [$clientId]
         );
-        return $existing !== null;
+        $set = [];
+        foreach ($rows as $r) {
+            $set[self::dupKey(
+                (string)$r['invoice_number'],
+                (string)$r['seller_nip'],
+                (float)$r['gross_amount']
+            )] = true;
+        }
+        return $set;
+    }
+
+    private static function dupKey(string $invoiceNumber, string $sellerNip, float $grossAmount): string
+    {
+        return $invoiceNumber . '|' . $sellerNip . '|' . number_format($grossAmount, 2, '.', '');
     }
 
     /**

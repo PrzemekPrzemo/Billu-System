@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Cache;
 use App\Core\Database;
 use App\Core\Auth;
 use App\Models\Client;
@@ -9,11 +10,19 @@ use App\Models\Office;
 
 class PasswordResetService
 {
+    /** Max password-reset requests per IP+NIP per window. */
+    private const THROTTLE_MAX = 5;
+    private const THROTTLE_WINDOW = 3600;
+
     /**
      * Create a password reset token and send email.
      */
     public static function createReset(string $userType, string $nip): bool
     {
+        if (self::isThrottled($nip)) {
+            return false;
+        }
+
         $user = null;
         if ($userType === 'client') {
             $user = Client::findByNip($nip);
@@ -52,6 +61,23 @@ class PasswordResetService
             $resetUrl,
             $user['language'] ?? 'pl'
         );
+    }
+
+    /** Per-IP+NIP request throttle backed by Cache. Fails open if Cache driver is null. */
+    private static function isThrottled(string $nip): bool
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if ($ip === '') {
+            return false;
+        }
+        $cache = Cache::getInstance();
+        $key = 'pwd_reset_throttle:' . sha1($ip . '|' . $nip);
+        $attempts = (int) ($cache->get($key) ?? 0);
+        if ($attempts >= self::THROTTLE_MAX) {
+            return true;
+        }
+        $cache->set($key, $attempts + 1, self::THROTTLE_WINDOW);
+        return false;
     }
 
     /**

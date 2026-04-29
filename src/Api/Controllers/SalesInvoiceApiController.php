@@ -81,7 +81,7 @@ class SalesInvoiceApiController
         $body = $this->getJsonBody();
         $data = $this->validateAndBuildData($body, $clientId, false);
 
-        IssuedInvoice::update((int) $invoice['id'], $data);
+        IssuedInvoice::update((int) $invoice['id'], $data, IssuedInvoice::FILLABLE);
 
         $updated = IssuedInvoice::findById((int) $invoice['id']);
         ApiResponse::success($this->formatFull($updated));

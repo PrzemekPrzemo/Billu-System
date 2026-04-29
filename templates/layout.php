@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="<?= \App\Core\Asset::url('css/style.css') ?>">
     <style>
         :root {
             --primary: <?= htmlspecialchars($branding['primary_color'] ?? '#008F8F') ?>;
@@ -50,6 +50,7 @@
     <?php $isOffice = \App\Core\Auth::isOffice(); ?>
     <?php $isEmployee = \App\Core\Auth::isEmployee(); ?>
     <?php $isClient = \App\Core\Auth::isClient(); ?>
+    <?php $isClientEmployee = \App\Core\Auth::isClientEmployee(); ?>
     <?php $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH); ?>
 
     <nav class="navbar">
@@ -67,13 +68,15 @@
                         <span class="notif-badge"><?= $notificationCount ?></span>
                     <?php endif; ?>
                 </a>
-                <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : '/client') ?>" class="nav-user">
+                <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>" class="nav-user">
                     <?php if ($isAdmin): ?>
                         <?= htmlspecialchars(\App\Core\Session::get('username', '')) ?>
                     <?php elseif ($isEmployee): ?>
                         <?= htmlspecialchars(\App\Core\Session::get('employee_name', '')) ?>
                     <?php elseif ($isOffice): ?>
                         <?= htmlspecialchars(\App\Core\Session::get('office_name', '')) ?>
+                    <?php elseif ($isClientEmployee): ?>
+                        <?= htmlspecialchars(\App\Core\Session::get('client_employee_name', '')) ?>
                     <?php else: ?>
                         <?= htmlspecialchars(\App\Core\Session::get('client_name', '')) ?>
                     <?php endif; ?>
@@ -89,7 +92,7 @@
                     <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.752 15.002A9.72 9.72 0 0112.035 3.75a9.72 9.72 0 00-8.285 11.252A9.72 9.72 0 0012 24a9.72 9.72 0 009.752-8.998z"/></svg>
                     <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                 </button>
-                <a href="/logout" class="nav-link nav-logout"><?= $lang('logout') ?></a>
+                <a href="<?= $isClientEmployee ? '/employee/logout' : '/logout' ?>" class="nav-link nav-logout"><?= $lang('logout') ?></a>
             </div>
         </div>
     </nav>
@@ -97,7 +100,7 @@
     <!-- ===== SIDEBAR ===== -->
     <aside class="app-sidebar" id="app-sidebar">
         <div class="sidebar-logo">
-            <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : '/client') ?>">
+            <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>">
                 <img src="<?= htmlspecialchars($branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-light">
                 <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-dark">
             </a>
@@ -337,7 +340,7 @@
                     <?= $lang('security') ?>
                 </a>
 
-            <?php else: ?>
+            <?php elseif ($isClient): ?>
                 <!-- CLIENT SIDEBAR -->
                 <a href="/client" class="sidebar-link <?= $currentPath === '/client' ? 'active' : '' ?>">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -498,6 +501,25 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                     <?= $lang('security') ?>
                 </a>
+
+            <?php elseif ($isClientEmployee): ?>
+                <!-- CLIENT-EMPLOYEE SIDEBAR -->
+                <a href="/employee" class="sidebar-link <?= $currentPath === '/employee' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <?= $lang('dashboard') ?>
+                </a>
+                <a href="/employee/payslips" class="sidebar-link <?= str_starts_with($currentPath, '/employee/payslips') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Paski wynagrodzeń
+                </a>
+                <a href="/employee/leaves" class="sidebar-link <?= str_starts_with($currentPath, '/employee/leaves') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Urlopy
+                </a>
+                <a href="/employee/profile" class="sidebar-link <?= $currentPath === '/employee/profile' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Profil
+                </a>
             <?php endif; ?>
         </nav>
     </aside>
@@ -557,6 +579,6 @@
         </div>
     </div>
 
-    <script src="/assets/js/app.js"></script>
+    <script defer src="<?= \App\Core\Asset::url('js/app.js') ?>"></script>
 </body>
 </html>
