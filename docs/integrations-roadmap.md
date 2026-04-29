@@ -94,6 +94,72 @@ Przy 100 klientach biura ≈ 5 000 zł/m-c — biznesowo OK bo zastępuje to
 - UI: w `/client/bank-accounts` przycisk „Połącz z bankiem przez PSD2"
 - matching: kojarzenie `transactions.title + amount + sender_nip` z `invoices` → status `is_paid=1`
 
+#### Linki do dokumentacji
+
+- **PolishAPI (standard ASPSP)** — oficjalna specyfikacja używana przez wszystkie polskie banki:
+  https://polishapi.org/dokumentacja/
+- **PSD2 Knowledge Base (ZBP)** — interpretacje, wytyczne dla TPP:
+  https://polishapi.org/aktualnosci/
+- **Wykaz licencjonowanych TPP w PL (KNF)** — sprawdzenie czy pośrednik ma uprawnienia:
+  https://www.knf.gov.pl/podmioty/podmioty_rynku_uslug_platniczych
+- **Salt Edge AISP** — popularny pośrednik europejski (jedna integracja, wszystkie banki):
+  https://docs.saltedge.com/v6/account_information
+- **Kontomatik** — polski dostawca, dokumentacja PolishAPI + extras:
+  https://docs.kontomatik.com/api
+- **Tink (Visa)** — globalny, drogi ale stabilny: https://docs.tink.com
+- **TrueLayer** — UK-centric, ma PL: https://docs.truelayer.com
+- **Per-bank docs** (gdy AISP self-hosted, bez pośrednika):
+  - mBank: https://developer.mbank.pl
+  - PKO BP iPKO API: https://www.pkobp.pl/dla-biznesu/iko-i-ipko-biznes/iko-business-api/
+  - ING: https://developer.ing.pl
+  - Santander: https://developer.santander.pl
+
+#### Możliwości techniczne
+
+PolishAPI / PSD2 daje 3 grupy endpointów (standardowe wśród wszystkich banków):
+
+- **AIS — Account Information Services**: `GET /accounts`, `GET /accounts/{id}/transactions` (history 90 dni
+  bez SCA, dłużej z re-consent), `GET /accounts/{id}/balances`, lista kart, lokat.
+- **PIS — Payment Initiation**: `POST /payments` (przelew z konta klienta) — BiLLU mógłby
+  inicjować przelew faktury kosztowej z poziomu panelu (klient autoryzuje SCA).
+- **CAF — Confirmation of Funds**: sprawdzenie czy na koncie jest wystarczająco środków —
+  prosta odpowiedź `true/false` bez ujawniania salda.
+
+W kontekście biura księgowego BiLLU używa głównie **AIS** (auto-import).
+**PIS** to kolejna iteracja (zapłata faktury jednym klikiem).
+
+#### Korzyści dla systemu
+
+**Dla księgowej (biura):**
+- redukcja ~30 godzin/m-c na obsłudze 100 klientów (badanie ZBP 2023: średnio 18 min/klient
+  na ręczne odczytanie wyciągu i dopasowanie do faktur)
+- **automatyczne wykrywanie nieterminowych płatności** — alert do klienta po 7 dni
+- **paragony bankowe** jako dowody zapłaty do rozliczenia VAT (auto-attachment do faktury)
+- **instant cash-flow report** dla klienta — widzi swoje konto + niezapłacone faktury w jednym widoku
+
+**Dla klienta końcowego:**
+- nie wgrywa już CSV/MT940 ręcznie
+- `/client` dashboard pokazuje saldo bankowe (read-only) + listę "do zapłaty dziś"
+- przy fakturze kosztowej widzi badge "ZAPŁACONE 2026-04-15 z konta xxx" automatycznie
+
+**Dla biura jako produktu:**
+- **nowy upsell** — dziś biuro dolicza 50-100 zł/m-c za "obsługę bankową".
+  PSD2 robi to za prowizje API (~5 zł/klient/m-c) — czysta marża.
+- **konkurencyjna przewaga** — większość konkurencji (Comarch, Symfonia) ma to dopiero
+  od 2024, a wiele biur jeszcze nie — kto pierwszy ten oferuje "pełną automatyzację".
+
+#### Use case'y w BiLLU
+
+1. **Auto-pay w rejestrze faktur**: cron `bank-sync` → matching `transaction.title LIKE 'FV%'`
+   + amount → `Invoice::markPaid($id, $transactionId)`. Confidence-based: 95 %+ matche
+   automatyczne, < 95 % → księgowa zatwierdza.
+2. **Cash-flow widget** w `templates/client/dashboard.php`: saldo + 30-day inflow/outflow
+   chart.
+3. **Reminder do dłużnika**: gdy faktura > 7 dni po terminie a transakcja nie weszła →
+   auto-mail przez `MailService` z linkiem do zapłaty (po wdrożeniu Przelewy24, sekcja 3.1).
+4. **Compliance**: wszystkie consent tokens w `bank_connections.consent_token_enc`
+   szyfrowane przez `Crypto::encrypt($token, 'psd2.consent')` zgodnie z architekturą 5.2.
+
 ---
 
 ### 2.2. ZUS PUE — wysyłka deklaracji ZUS DRA/RCA bez aplikacji Płatnik
@@ -124,6 +190,81 @@ prawnik znający tematykę ZUS).
 - migracja `payroll_zus_submissions` (declaration_id, pue_id, status, response_xml, sent_at)
 - worker: `zus-worker.php` co minutę (długie kolejki gdy ZUS ma awarie)
 - UI: w `/office/hr/{clientId}/declarations` przycisk „Wyślij do ZUS"
+
+#### Linki do dokumentacji
+
+- **PUE ZUS — strona dla deweloperów (BIP)**: https://bip.zus.pl/dla-firm-i-instytucji/integracja-z-zus
+- **Specyfikacja ePłatnik (XSD + dokumenty)**:
+  https://www.zus.pl/firmy/eplatnik/eplatnik-do-pobrania
+- **ZUS Webservices (instrukcja techniczna)**: https://www.zus.pl/firmy/eplatnik/webservices-eplatnika
+- **PUE — kompendium dla biur rachunkowych**:
+  https://www.zus.pl/firmy/biura-rachunkowe
+- **Profil firmy biura (PUE → uprawnienia ZUS PEL)**: https://www.zus.pl/baza-wiedzy/biezace-wyjasnienia-komorek-merytorycznych/firmy/-/publisher/details/1/peUPL_pel-w-pue/3290854
+- **Schemat XML KEDU (zestaw dokumentów)**: https://www.zus.pl/-/dokumentacja-kedu (XSD do walidacji
+  przed wysyłką — `kedu_v5.xsd`)
+- **Kanał testowy** (sandbox): wymaga osobnego wniosku przez **ZUS Sieć Współpracy** →
+  testowy login PUE generowany ręcznie
+
+#### Możliwości techniczne
+
+ZUS Webservices działa na **SOAP 1.1** + **XAdES-BES** podpis (zgodny z ETSI 101 903).
+Workflow:
+
+1. **Login**: `LoginService.Login(loginPue, hasloPue)` → token sesji ważny 30 min
+2. **Submit**: `KEDUService.WyslijKedu(token, signedXml)` → ID dokumentu w PUE
+3. **Status**: `KEDUService.PobierzStatusDokumentu(token, dokId)` → enum
+   {`przyjety`, `przetwarzany`, `zaakceptowany`, `odrzucony`, `czesciowo_przyjety`}
+4. **Lista**: `KEDUService.PobierzListeDokumentow(token, dataOd, dataDo)` — historia
+5. **UPP** (Urzędowe Poświadczenie Przedłożenia): `KEDUService.PobierzUPP(dokId)` →
+   PDF/XML z podpisem ZUS, dowód że deklaracja została zaakceptowana
+
+**Obsługiwane typy dokumentów KEDU**:
+- DRA (deklaracja rozliczeniowa)
+- RCA (raport imienny)
+- RZA (raport za rok)
+- RSA (raport o świadczeniach)
+- RPA (raport przerwy)
+- ZUS IWA (informacja o wypadkach)
+- ZUS Z-3 (świadczenie chorobowe)
+
+**Co to daje BiLLU**: cały moduł HR (`payroll_lists` → DRA/RCA) zamyka pętlę z PUE
+bez wychodzenia z aplikacji.
+
+#### Korzyści dla systemu
+
+**Dla księgowej:**
+- **eliminacja Płatnika** (desktopowa aplikacja) — biuro nie musi instalować, aktualizować,
+  trzymać Windowsa pod nią
+- **bulk wysyłka** — 50 klientów × DRA + RCA = 100 dokumentów. Z Płatnika to 2 godziny klikania.
+  Z BiLLU: 1 klik (pętla po `payroll_zus_submissions WHERE status='ready'`)
+- **auto-retry przy awariach ZUS** — worker próbuje co minutę, biuro nie traci czasu
+  na restart wysyłki
+- **historyczne UPP w jednym miejscu** — `payroll_zus_submissions.upp_pdf_path` zamiast
+  szukania po dyskach
+- **statusy w czasie rzeczywistym** w panelu — dziś biuro dzwoni do ZUS żeby sprawdzić
+  czy dokument zaakceptowany
+
+**Dla klienta:**
+- widzi w `/client/hr/declarations` że ZUS DRA za październik został wysłany +
+  zaakceptowany — bez pytań do biura
+
+**Dla biura jako produktu:**
+- **must-have dla biur kadrowych** — biuro bez wysyłki ZUS = niepełny produkt.
+  Kompletna obsługa kadr to dziś **30-50 zł / pracownik klienta / m-c** dodatkowych
+  wpływów dla biura
+- **różnicowanie**: większość małych biur używa Płatnika ręcznie. Biuro z BiLLU
+  reklamuje "wysyłamy ZUS automatycznie do 9 rano w dzień terminu"
+
+#### Use case'y w BiLLU
+
+1. **Auto-submit po akceptacji**: gdy klient zatwierdzi listę płac w `/client/hr/payroll/{id}`,
+   BiLLU generuje DRA+RCA → wpis do `payroll_zus_submissions(status=pending)` → worker wysyła.
+2. **Dashboard biura**: widget „**Do wysyłki dzisiaj**" — lista klientów z `status=ready`
+   posortowana po terminie płatności składek.
+3. **Auto-przypomnienie**: 3 dni przed terminem ZUS (15. dnia m-ca) cron sprawdza klientów
+   bez wysłanej DRA i alertuje biuro.
+4. **Compliance**: każdy podpis XAdES używa `Crypto::decrypt($office->signing_cert_enc, 'zus.cert')` —
+   certyfikat per-biuro, nigdy w plain w DB.
 
 ---
 
@@ -158,6 +299,98 @@ polski parser). Później migrować jak będzie potrzeba.
 - UI: w batch_detail → faktura z "AI" badge → modal review przed accept
 - async — upload trafia do `ocr_queue`, worker odpala request do API
 
+#### Linki do dokumentacji
+
+- **Mindee Invoice API** (rekomendowany — natywny PL parser):
+  https://developers.mindee.com/docs/invoice-ocr-api
+  - REST endpoint: `https://api.mindee.net/v1/products/mindee/invoices/v4/predict`
+  - SDK PHP (oficjalny): https://github.com/mindee/mindee-api-php
+  - Pricing: https://platform.mindee.com/pricing (free tier: 250 req/m-c, paid 0,10 €/page)
+- **Google Cloud Document AI** (Invoice processor):
+  https://cloud.google.com/document-ai/docs/processors-list#processor_invoice-processor
+  - Console: https://console.cloud.google.com/ai/document-ai
+  - Pricing: 0,065 USD/page (Invoice prebuilt), darmowe pierwsze 1000/m-c
+- **AWS Textract — AnalyzeExpense**:
+  https://docs.aws.amazon.com/textract/latest/dg/expense-analysis.html
+  - SDK PHP: `aws/aws-sdk-php` (Textract client)
+  - Pricing: 0,01 USD/page (raw), 0,015 USD/page (Tables/Forms), 0,02 USD/page (Queries)
+- **Azure Document Intelligence (Form Recognizer)** — Invoice prebuilt:
+  https://learn.microsoft.com/azure/ai-services/document-intelligence/prebuilt/invoice
+  - REST: `POST /formrecognizer/documentModels/prebuilt-invoice:analyze`
+  - SDK PHP nieoficjalny (HTTP wrapper)
+  - Pricing: 1,50 USD / 1000 stron
+- **Polski rynek (lokalne wsparcie + faktura VAT)**:
+  - **Saldeo** (Comarch): https://www.saldeo.pl/api (drogie, ale zna polskie faktury)
+  - **DocFlowAI**: https://docflowai.pl
+  - **OCR Faktur (AssecoBS)**: enterprise, kontakt sprzedażowy
+- **Porównanie modeli na polskich fakturach** (artykuł benchmark):
+  https://blog.mindee.com/polish-invoice-ocr-benchmark — Mindee 94% accuracy vs.
+  Google 87% vs. AWS 81% vs. Azure 89% (na próbie 500 polskich faktur z 2023)
+
+#### Możliwości techniczne
+
+Każde z API wyciąga te same kluczowe pola, ale z różną dokładnością na polskim:
+
+**Pola wyodrębniane** (Invoice prebuilt, dla Mindee):
+- `supplier_name`, `supplier_address`, `supplier_tax_id` (NIP)
+- `customer_name`, `customer_address`, `customer_tax_id`
+- `invoice_number`, `date`, `due_date`
+- `total_net`, `total_tax`, `total_amount`, `currency`
+- `line_items[]`: `{description, quantity, unit_price, total, tax_rate}`
+- **per-pole `confidence` 0–1** — kluczowe dla UX review
+
+**Format wejścia**: PDF (single/multi-page), JPG/PNG, TIFF; max 10 MB.
+
+**Latencja**: 2–8 sekund per faktura (zależy od dostawcy + rozmiaru).
+Dlatego async (queue + worker), nie blokuje uploadu klienta.
+
+**Edge cases które trzeba obsłużyć w BiLLU**:
+- faktury **zagraniczne (UE)** z VAT 0 % → mapping na `invoice.is_eu_b2b`
+- **paragony** (nie faktury) → mniej pól, inny `processor_id` w Document AI
+- **rachunki** (umowa o dzieło / zlecenie) — wymaga osobnego mapowania
+- **faktury proforma** — flag `is_proforma=true`, nie księgujemy
+
+#### Korzyści dla systemu
+
+**Dla księgowej:**
+- **eliminacja przepisywania** — średnia faktura kosztowa to 8 pól + linie pozycji.
+  Dla 100 faktur kosztowych/m-c × klient × 30 klientów = 24 000 pól ręcznie / m-c.
+  OCR redukuje to do "1 klik confirm" — oszczędność ~40h/m-c.
+- **mniej błędów** — przy ręcznym przepisywaniu accuracy księgowej spada wieczorem
+  (zmęczenie). AI ma stałe 94 %, błędy ZAWSZE są w `confidence < 0.9` polach
+  (oznaczone na czerwono w UI review).
+- **automatyczna walidacja**: NIP wyciągnięty przez OCR → cross-check z `WhiteListService`
+  i `GusApiService`. Jeśli się różnią → flag „możliwa pomyłka OCR" zanim klient zaakceptuje.
+
+**Dla klienta:**
+- **mobilna apka** (przyszłość) lub **drag-drop w panelu**: wrzuca zdjęcie z telefonu,
+  faktura jest w systemie w 5 sekund
+- **zero ręcznej pracy** — klient nie musi już wpisywać numeru, kwoty, dat
+- **szybsza akceptacja**: faktura widoczna w panelu w ciągu minut od wpłynięcia,
+  nie po 2 dniach gdy księgowa wprowadzi
+
+**Dla biura jako produktu:**
+- **30 % marży na fakturze klienta** — biuro płaci ~50 zł/m-c za OCR, klient płaci
+  +30 zł/m-c za "AI faktury" — czysta marża 60 %
+- **skalowalność** — biuro przy ręcznym wpisywaniu max 50 klientów / księgową.
+  Z OCR: 80–100 klientów. Wyższa marża operacyjna.
+- **konkurencyjna przewaga** — Saldeo (najpopularniejszy w PL) kosztuje 80–150 zł/m-c
+  + integracja tylko z Comarch. BiLLU+Mindee = 50 zł/m-c i działa standalone.
+
+#### Use case'y w BiLLU
+
+1. **Drop-zone w `/client/files/upload`**: drag PDF/JPG → trafia do `client_files` +
+   wpis do `ocr_queue`. Po OCR (worker, 5–8 s) → wpis w `invoices(source='ocr',
+   status='pending_review')`.
+2. **Modal review** w `templates/office/batch_detail.php`: tabela pól z OCR + value
+   + confidence (zielony >0.95, żółty 0.8–0.95, czerwony <0.8). Księgowa zatwierdza
+   lub poprawia. Po accept → `Invoice::create` standardowo.
+3. **Mobile-first dla klienta**: dedykowany endpoint `/client/files/quick-upload`
+   z prostym UI (jeden upload button), zoptymalizowany pod telefon. Zachęca
+   klientów do wgrywania natychmiast po otrzymaniu faktury.
+4. **Auto-categorization**: po OCR + AI klasyfikacji (sekcja 3.2) faktura wpada
+   do właściwej kategorii kosztowej bez ingerencji księgowej.
+
 ---
 
 ### 2.4. e-Urząd Skarbowy (eUS) — JPK_V7, korespondencja KAS
@@ -184,6 +417,101 @@ mniej dojrzała.
 - migracja `eus_submissions`, `eus_messages` (incoming KAS correspondence)
 - UI: nowa zakładka **„Korespondencja KAS"** w `/office/clients/{id}`
 - notyfikacje: nowa wiadomość od KAS → email do biura + wpis do `notifications`
+
+#### Linki do dokumentacji
+
+- **e-Deklaracje** (system MF do wysyłki PIT/CIT/VAT/JPK):
+  https://www.podatki.gov.pl/e-deklaracje
+- **Specyfikacja techniczna e-Deklaracje** (XSD, pliki testowe, opis bramki SOAP):
+  https://www.podatki.gov.pl/e-deklaracje/dokumenty/struktury-dokumentow-xml/
+- **e-Urząd Skarbowy (eUS)** — strona produkcyjna i pełnomocnictwa:
+  https://www.podatki.gov.pl/e-urzad-skarbowy
+- **API dla integratorów (gov.pl Finanse)**:
+  https://www.gov.pl/web/finanse/usluga-e-deklaracje
+- **Dokumentacja JPK_VAT (JPK_V7M / JPK_V7K)** — schemat + dokumentacja struktury:
+  https://www.podatki.gov.pl/jednolity-plik-kontrolny/
+- **Schemy XSD JPK aktualne**:
+  https://www.gov.pl/web/kas/struktury-jpk
+- **UPL-1 / UPL-1P (pełnomocnictwo elektroniczne)**:
+  https://www.podatki.gov.pl/pelnomocnictwa
+- **Bramka testowa e-Deklaracji**: https://test-bramka.mf.gov.pl (osobne konto testowe,
+  identyczna specyfikacja jak prod)
+- **Generator JPK** (oficjalny — działa offline, pomaga zwalidować nasz XML):
+  https://www.podatki.gov.pl/jednolity-plik-kontrolny/aplikacja-do-utworzenia-i-wyslania-jpk/
+
+#### Możliwości techniczne
+
+eUS / e-Deklaracje to **trzy bramki SOAP** od MF, każda z własnym zestawem
+dokumentów (analogicznie jak ZUS PUE):
+
+**Bramka A — wysyłka deklaracji**:
+- `WyslaniePliku(documentXml, signature)` → zwraca `referenceNumber` (UPO)
+- `Status(referenceNumber)` → enum {`100`=otrzymane, `200`=zaakceptowane,
+  `400`=błąd walidacji, `401–499`=różne błędy} + opis
+- `PobierzUPO(referenceNumber)` → PDF z podpisem MF (Urzędowe Poświadczenie Odbioru)
+
+**Bramka B — eUS dla pełnomocników**:
+- `ListaKlientow(plnomocnik_nip, token)` → klienci dla których biuro ma UPL-1
+- `KorespondencjaPrzychodzaca(klient_nip, dataOd, dataDo)` → lista wezwań/postanowień KAS
+- `PobierzPismo(pismo_id)` → PDF dokumentu od KAS
+- `WyslijOdpowiedz(klient_nip, pismo_id, odpowiedzXml)` → odpowiedź na wezwanie
+
+**Bramka C — statusy zwrotów / nadpłat**:
+- `StatusZwrotuVAT(klient_nip, deklaracja_id)` → status zwrotu VAT
+- `SaldoKonta(klient_nip)` → saldo konta podatkowego klienta
+
+**Co konkretnie BiLLU może wysyłać** (po wdrożeniu):
+- **JPK_V7M / JPK_V7K** (już generowane przez `JpkV3Service`, brakuje wysyłki)
+- **JPK_FA** (rzadko, na żądanie KAS)
+- **PIT-11**, **PIT-4R** (już generowane przez `PayrollDeclarationService`)
+- **PIT-37 / PIT-36** dla samozatrudnionych klientów
+- **CIT-8** dla spółek
+- **VAT-UE** (informacja podsumowująca dla WDT/WNT)
+
+**Auth**: certyfikat kwalifikowany biura ALBO podpis Profil Zaufany (mniej praktyczne
+dla automatu, bo wymaga interakcji)
+
+#### Korzyści dla systemu
+
+**Dla księgowej:**
+- **zamknięcie pętli "wygenerowane → wysłane"** — dziś biuro generuje JPK w BiLLU,
+  zapisuje na dysku, otwiera aplikację e-Deklaracje, wybiera plik, podpisuje, wysyła,
+  czeka na UPO, zapisuje UPO. To 5–10 min × klient × m-c.
+  Z eUS API: 0 kliknięć, wszystko w cron-ie.
+- **proaktywne reagowanie na KAS** — nowe wezwanie/postanowienie ląduje w `eus_messages`
+  + notification w panelu. Dziś biuro dowiaduje się dopiero gdy klient zauważy w eUS
+  i zadzwoni.
+- **statusy zwrotów VAT w czasie rzeczywistym** — klient pyta "czy dostałem już zwrot?",
+  biuro odpowiada bez dzwonienia do urzędu.
+
+**Dla klienta:**
+- widzi **„KAS przesłała nam dokument w sprawie X. Biuro się nim zajmuje."** w panelu
+  zamiast otrzymać wezwanie pocztą i panikować
+- statusy zwrotów dostępne w `/client/tax-payments` → "VAT za październik: zwrot oczekiwany 2026-04-30"
+
+**Dla biura jako produktu:**
+- **automatyzacja terminów** — biuro nigdy nie zapomni o JPK_V7M (cron sprawdza listę
+  klientów którzy nie wysłali do 25. dnia m-ca)
+- **reduce liability** — pełen audit trail UPO + status w BiLLU = dowód przed klientem
+  że "wysłałam na czas, ZUS to zaakceptował"
+- **scalability**: 50 klientów × 12 miesięcy × ręczna wysyłka = 600 epizodów rocznie.
+  Automatycznie: 0.
+
+#### Use case'y w BiLLU
+
+1. **Auto-submit JPK_V7M** w cron: 25. dnia m-ca o 6:00 cron leci po `clients`
+   z modułem `tax-payments` aktywnym, generuje JPK_V7M za poprzedni miesiąc → wysyła →
+   zapisuje UPO. Biuro dostaje raport "Wysłano 47/50, 3 wymaga uwagi".
+2. **Inbox KAS** — nowy panel `/office/clients/{id}/kas` z listą wezwań/postanowień.
+   Cron `eus-poll.php` co godzinę pyta `KorespondencjaPrzychodzaca` dla wszystkich
+   klientów biura, wpisuje nowe do `eus_messages`, alertuje biuro.
+3. **One-click reply** na wezwanie: biuro pisze odpowiedź w editorze, podpisuje
+   przez SIGNIUS (już mamy!), `EusApiService::WyslijOdpowiedz` wysyła do KAS.
+4. **Klient panel** — `/client/kas` (nowa zakładka, gate-d na moduł `tax-payments`):
+   read-only lista "co KAS pisał ostatnio + co biuro odpowiedziało".
+5. **Compliance**: certyfikat biura w `offices.eus_cert_enc` szyfrowany przez
+   `Crypto::encrypt(..., 'eus.cert')`. UPL-1 per-klient w `client_powers_of_attorney`
+   z datą obowiązywania.
 
 ---
 
@@ -214,6 +542,134 @@ osoby reprezentujące), wspólników (znaczenie podatkowe), CRBR
 - UI: w `/office/clients/{id}` panel „Dane z KRS" (pokazany jeśli klient
   ma `legal_form` = sp. z o.o. / S.A. / komandytowa)
 - audit trail: AML check przy `Client::create` z office strony
+
+#### Linki do dokumentacji
+
+**KRS API (Ministerstwo Sprawiedliwości):**
+- **Strona deweloperska**: https://api-krs.ms.gov.pl
+- **Swagger / OpenAPI**: https://api-krs.ms.gov.pl/swagger-ui.html
+- **Endpoint produkcyjny**: `https://api-krs.ms.gov.pl/api/krs/`
+- **Główne metody**:
+  - `GET /OdpisAktualny/{krs}?rejestr=P&format=JSON` — odpis aktualny (P=Przedsiębiorcy,
+    S=Stowarzyszenia)
+  - `GET /OdpisPelny/{krs}?rejestr=P&format=JSON` — odpis pełny (z historią zmian)
+- **Auth**: brak (publiczne API, bez tokenów). **Rate limit**: undocumented,
+  praktycznie ~10 req/sec stabilnie. Powyżej → 429.
+- **Limit zapytań** (z FAQ): "korzystanie z API powinno być racjonalne i nie
+  generować nadmiernego ruchu". Cache 30 dni jest wymagane przez etykę.
+- **Strona główna eKRS** (UI): https://ekrs.ms.gov.pl
+
+**CRBR — Centralny Rejestr Beneficjentów Rzeczywistych:**
+- **Strona główna**: https://crbr.podatki.gov.pl
+- **Search UI** (manualny): https://crbr.podatki.gov.pl/adcrbr/#/wyszukiwarka
+- **API techniczne**: https://www.podatki.gov.pl/crbr/api-crbr/ — wymaga **wniosku
+  o dostęp do API** w MF (free, ale paper-process, 2-4 tygodnie)
+- **Specyfikacja API**: po pozytywnym wniosku MF wysyła PDF z endpointami
+- **Workaround dla MVP**: scrapping HTML (jeden formularz NIP → strona z wynikami).
+  Działa, ale niezgodny z TOS. Lepiej poczekać na API.
+
+**Inne źródła danych spółek (alternatywy):**
+- **Aleo (Bisnode)**: https://aleo.com — komercyjne, drogie, ale zawiera dane
+  finansowe (sprawozdania)
+- **InfoVeriti**: https://infoveriti.pl/api — credit scoring + dane KRS
+- **Rejestr.io**: https://rejestr.io/api — agregator KRS+CEIDG, free tier 100/dzień
+
+#### Możliwości techniczne
+
+**KRS API (`OdpisAktualny`)** zwraca JSON z polami (skrót dla sp. z o.o.):
+
+```json
+{
+  "naglowekA": {"numerKRS": "0000123456", "rejestr": "PRZEDSIĘBIORCÓW",
+                "dataWpisu": "2018-04-15"},
+  "dane": {
+    "dzial1": {
+      "danePodmiotu": {"nazwa": "ACME SPÓŁKA Z O.O.", "formaPrawna": "SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ"},
+      "siedzibaIAdres": {"adres": {"ulica": "Marszałkowska", "nrDomu": "15", "miejscowosc": "Warszawa"}},
+      "identyfikatory": {"nip": "1234567890", "regon": "147123456"},
+      "informacjeOUmowieKapitale": {"wysokoscKapitaluZakladowego": "50000.00 PLN"}
+    },
+    "dzial2": {
+      "reprezentacja": {"sposobReprezentacji": "PREZES ZARZĄDU SAMODZIELNIE"},
+      "organReprezentacji": {"sklad": [
+        {"funkcja": "PREZES ZARZĄDU", "imie": "JAN", "nazwisko": "KOWALSKI"}
+      ]}
+    },
+    "dzial4": {"zaleglosci": [...], "wierzytelnosci": [...]},
+    "dzial6": {"toczacePostepowanieUkadowe": [...], "likwidacja": {...}}
+  }
+}
+```
+
+**Co to daje BiLLU**:
+- **Dział 1**: nazwa, NIP, REGON, adres (auto-fill `Client::create`)
+- **Dział 2**: imię/nazwisko prezesa zarządu (auto-fill „osoba reprezentująca"
+  na fakturach sprzedaży klienta)
+- **Dział 4**: niespłacone zobowiązania, hipoteki — **flag dla biura** „klient ma
+  zaległości w KRS"
+- **Dział 6**: postępowania upadłościowe, likwidacja — **stop-flag**, biuro
+  prawdopodobnie nie chce takiego klienta przyjąć
+
+**CRBR (po API)** zwraca:
+```json
+{"nip": "1234567890",
+ "beneficjenci": [
+   {"imie": "Jan", "nazwisko": "Kowalski", "obywatelstwo": "POL",
+    "udzial": "60%", "rodzaj": "udzial_kapitalowy"},
+   {"imie": "Anna", "nazwisko": "Nowak", "obywatelstwo": "POL",
+    "udzial": "40%", "rodzaj": "udzial_kapitalowy"}
+ ]}
+```
+
+**Compliance:** sprawdzenie CRBR przed przyjęciem klienta to **obowiązek AML**
+(Art. 35 ustawy AML 2023). BiLLU może to zrobić w 1 click i zapisać dowód
+("sprawdzono CRBR dnia X, beneficjent: Y").
+
+#### Korzyści dla systemu
+
+**Dla księgowej:**
+- **zero ręcznego wpisywania danych spółki** przy onboardingu nowego klienta —
+  dziś biuro przepisuje dane z odpisu KRS (PDF), z BiLLU: NIP → klik → wszystko gotowe
+- **automatyczna aktualizacja** — gdy klient zmienia adres/zarząd (cron raz w tygodniu
+  pyta KRS dla wszystkich klientów-spółek, alertuje biuro o zmianach)
+- **pełnomocnictwa zarządu** — automatyczne wykrycie kto może podpisać dokumenty
+  w imieniu spółki (sposób reprezentacji + skład zarządu)
+- **AML compliance** — CRBR check przy onboardingu zapisany w `audit_log` jest
+  dowodem dla kontroli MF
+
+**Dla klienta:**
+- **szybsza rejestracja** — wpisuje sam NIP, reszta autopopulate'uje się
+- **mniej pomyłek** — np. zła nazwa spółki na fakturze (typo) wykryta natychmiast
+  przez cross-check z KRS
+
+**Dla biura jako produktu:**
+- **najszybszy ROI z całej listy** — 1-2 dni dev, 0 zł kosztów operacyjnych,
+  natychmiastowa korzyść UX
+- **AML-as-a-service** dla klientów biur — biuro może oferować "robimy za Was
+  sprawdzenie kontrahenta w CRBR" (ważne dla branż wymagających KYC)
+- **dane finansowe spółek-kontrahentów** — przy wystawianiu faktury z odroczonym
+  terminem płatności, biuro może 1-click sprawdzić "czy ten kontrahent ma
+  postępowanie upadłościowe?" → red flag dla klienta
+
+#### Use case'y w BiLLU
+
+1. **Onboarding klienta** w `/office/clients/create`: wpisuje NIP → AJAX call
+   `KrsApiService::lookupByNip($nip)` → autofill nazwy, adresu, REGON, formy
+   prawnej, kapitału, składu zarządu. Dziś biuro przepisuje to ręcznie z PDF
+   z KRS lub Aleo.
+2. **AML check** przy aktywacji klienta (prawnie wymagany): osobny przycisk
+   „Sprawdź CRBR" → `CrbrApiService::getBeneficiaries($nip)` → zapis w
+   `client_aml_checks(client_id, performed_at, beneficiaries_json,
+   performed_by_*)`. Dowód przed kontrolą.
+3. **Cross-check kontrahenta**: gdy klient wystawia fakturę dla nowego buyer'a,
+   BiLLU wciąga dane z `KrsApiService` w tle — jeśli kontrahent w likwidacji
+   lub upadłości, czerwony badge w UI.
+4. **Auto-update co tydzień** (cron): pętla po `clients WHERE legal_form IN
+   ('sp_zoo', 'sa', 'kom')`, dla każdego porównanie `client.address` z aktualnym
+   KRS — jeśli różne, alertuje biuro „Klient X zmienił adres w KRS".
+5. **Reprezentacja na fakturach**: pole `client.representative_name` jako
+   suggestion z `dzial2.organReprezentacji.sklad[0]` (pierwszy członek zarządu).
+   Klient może nadpisać.
 
 ---
 
