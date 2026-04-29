@@ -63,13 +63,17 @@
     <div class="section" style="margin-top:16px; padding:16px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px;">
         <h3 style="margin-top:0;"><?= $lang('admin_reset_password') ?></h3>
         <p class="text-muted" style="font-size:13px; margin-bottom:12px;"><?= $lang('admin_reset_password_hint') ?></p>
-        <form method="POST" action="/admin/offices/<?= $office['id'] ?>/reset-password" style="display:flex; gap:8px; align-items:flex-end;">
-            <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+        <div style="display:flex; gap:8px; align-items:flex-end;">
             <div class="form-group" style="margin:0; flex:1;">
-                <input type="password" name="new_password" class="form-input" required minlength="12" placeholder="<?= $lang('new_password') ?>">
+                <input type="password" name="new_password" class="form-input" minlength="12" placeholder="<?= $lang('new_password') ?>">
             </div>
-            <button type="submit" class="btn btn-warning" data-confirm="<?= $lang('reset_password_confirm') ?>"><?= $lang('reset_password_button') ?></button>
-        </form>
+            <button type="submit"
+                    formaction="/admin/offices/<?= $office['id'] ?>/reset-password"
+                    formmethod="POST"
+                    formnovalidate
+                    class="btn btn-warning"
+                    data-confirm="<?= $lang('reset_password_confirm') ?>"><?= $lang('reset_password_button') ?></button>
+        </div>
     </div>
 
     <div class="form-row">
@@ -222,15 +226,106 @@
         </div>
     </div>
 
+    <?php if ($office && !empty($modules)): ?>
+    <details class="form-section module-panel" open style="margin-top:24px;border:1px solid var(--gray-200);border-radius:var(--radius-md,8px);background:var(--white,#fff);">
+        <summary style="padding:14px 18px;cursor:pointer;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;user-select:none;list-style:none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <?= $lang('modules_management') ?>
+            <?php
+              $enabledCount = 0; $totalCount = 0;
+              foreach ($modules as $m) { $totalCount++; if (!empty($m['is_enabled_for_office']) || !empty($m['is_system'])) { $enabledCount++; } }
+            ?>
+            <span style="margin-left:auto;font-weight:500;font-size:13px;color:var(--gray-500);">
+                <?= $enabledCount ?> / <?= $totalCount ?> <?= $lang('module_enabled') ?>
+            </span>
+        </summary>
+
+        <div style="padding:0 18px 18px 18px;">
+            <input type="hidden" name="modules_submitted" value="1">
+
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAllModules(true)"><?= $lang('select_all_modules') ?></button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAllModules(false)"><?= $lang('deselect_all_modules') ?></button>
+            </div>
+
+            <?php
+            $categories = [
+                'core' => $lang('module_cat_core'),
+                'tax' => $lang('module_cat_tax'),
+                'communication' => $lang('module_cat_communication'),
+                'reporting' => $lang('module_cat_reporting'),
+                'tools' => $lang('module_cat_tools'),
+                'hr' => $lang('module_cat_hr'),
+                'system' => $lang('module_cat_system'),
+            ];
+            $grouped = [];
+            foreach ($modules as $m) {
+                $cat = $m['category'] ?? 'general';
+                $grouped[$cat][] = $m;
+            }
+            ?>
+
+            <?php foreach ($categories as $catSlug => $catName): ?>
+                <?php if (!empty($grouped[$catSlug])): ?>
+                <div style="margin-bottom:18px;">
+                    <h4 style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--gray-500);margin:0 0 10px 0;padding-bottom:6px;border-bottom:1px solid var(--gray-200);">
+                        <?= $catName ?>
+                    </h4>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;">
+                        <?php foreach ($grouped[$catSlug] as $m):
+                            $isSystem = !empty($m['is_system']);
+                            $isEnabled = !empty($m['is_enabled_for_office']);
+                        ?>
+                        <label class="module-card" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;border:1px solid var(--gray-200);cursor:<?= $isSystem ? 'default' : 'pointer' ?>;background:var(--gray-50);<?= $isEnabled ? 'border-color:var(--primary);' : '' ?>">
+                            <input type="checkbox"
+                                   name="modules[]"
+                                   value="<?= htmlspecialchars($m['slug']) ?>"
+                                   class="module-toggle"
+                                   <?= $isEnabled ? 'checked' : '' ?>
+                                   <?= $isSystem ? 'checked disabled' : '' ?>
+                                   style="width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;">
+                            <?php if ($isSystem): ?>
+                                <input type="hidden" name="modules[]" value="<?= htmlspecialchars($m['slug']) ?>">
+                            <?php endif; ?>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;">
+                                    <i class="<?= htmlspecialchars($m['icon'] ?? 'fas fa-puzzle-piece') ?>" style="color:var(--primary);width:14px;text-align:center;font-size:12px;"></i>
+                                    <?= htmlspecialchars($m['name']) ?>
+                                    <?php if ($isSystem): ?>
+                                        <span style="font-size:9px;background:var(--gray-200);color:var(--gray-600);padding:1px 5px;border-radius:3px;">SYSTEM</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($m['description'])): ?>
+                                    <div style="font-size:11px;color:var(--gray-500);margin-top:2px;">
+                                        <?= htmlspecialchars($m['description']) ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+
+            <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
+                <?= $lang('modules_save_hint') ?>
+            </p>
+        </div>
+    </details>
+
+    <script>
+    function toggleAllModules(state) {
+        document.querySelectorAll('.module-panel .module-toggle:not([disabled])').forEach(function(cb) {
+            cb.checked = state;
+        });
+    }
+    </script>
+    <?php endif; ?>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-primary"><?= $lang('save') ?></button>
         <a href="/admin/offices" class="btn btn-secondary"><?= $lang('cancel') ?></a>
-        <?php if ($office): ?>
-        <a href="/admin/offices/<?= $office['id'] ?>/modules" class="btn btn-secondary" style="margin-left:auto;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            <?= $lang('modules_management') ?>
-        </a>
-        <?php endif; ?>
     </div>
 </form>
 

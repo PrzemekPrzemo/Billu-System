@@ -142,7 +142,12 @@ class AdminController extends Controller
         $office = Office::findById((int) $id);
         if (!$office) { $this->redirect('/admin/offices'); return; }
         $smtpConfig = \App\Models\OfficeSmtpConfig::findByOfficeId((int) $id);
-        $this->render('admin/office_form', ['office' => $office, 'smtpConfig' => $smtpConfig]);
+        $modules = Module::getOfficeModuleMatrix((int) $id);
+        $this->render('admin/office_form', [
+            'office' => $office,
+            'smtpConfig' => $smtpConfig,
+            'modules' => $modules,
+        ]);
     }
 
     public function officeUpdate(string $id): void
@@ -192,6 +197,17 @@ class AdminController extends Controller
         } else {
             AuditLog::log('admin', Auth::currentUserId(), 'office_updated', "Office ID: {$id}", 'office', (int)$id);
             Session::flash('success', 'office_updated');
+        }
+
+        // Inline modules panel — only apply when the form actually submitted them
+        // (the dedicated /admin/offices/{id}/modules page also still works).
+        if (array_key_exists('modules_submitted', $_POST)) {
+            $auto = $this->applyOfficeModules((int) $id, $_POST['modules'] ?? []);
+            if ($auto) {
+                AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated',
+                    'Modules updated inline for office ID ' . $id . ' | Auto-cascade: ' . implode(', ', array_unique($auto)),
+                    'office', (int)$id);
+            }
         }
 
         // Save per-office SMTP config
@@ -289,7 +305,28 @@ class AdminController extends Controller
         $office = Office::findById((int) $id);
         if (!$office) { $this->redirect('/admin/offices'); return; }
 
-        $enabledSlugs = $_POST['modules'] ?? [];
+        $autoActions = $this->applyOfficeModules((int) $id, $_POST['modules'] ?? []);
+
+        $logMsg = 'Modules updated for office: ' . $office['name'] . ' (ID: ' . $id . ')';
+        if ($autoActions) {
+            $logMsg .= ' | Auto-cascade: ' . implode(', ', array_unique($autoActions));
+        }
+        AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated', $logMsg, 'office', (int) $id);
+        Session::flash('success', 'modules_saved');
+        $this->redirect("/admin/offices/{$id}/modules");
+    }
+
+    /**
+     * Apply a list of enabled module slugs to an office. Reused by the dedicated
+     * modules page AND by the inline modules panel in the office edit form.
+     * Returns array of human-readable cascade actions ("+slug" / "-slug") for
+     * audit logging.
+     *
+     * @param array<int,string> $enabledSlugs
+     * @return array<int,string>
+     */
+    private function applyOfficeModules(int $officeId, array $enabledSlugs): array
+    {
         $allModules = Module::findAll(true);
         $autoActions = [];
 
@@ -298,34 +335,23 @@ class AdminController extends Controller
             if (!empty($mod['is_system'])) {
                 $shouldEnable = true;
             }
-
-            $currentlyEnabled = Module::isEnabledForOffice((int) $id, $mod['slug']);
+            $currentlyEnabled = Module::isEnabledForOffice($officeId, $mod['slug']);
 
             if ($shouldEnable && !$currentlyEnabled) {
-                // Enabling — auto-enable required dependencies
-                $auto = Module::enableWithDependencies((int) $id, (int) $mod['id'], Auth::currentUserId());
+                $auto = Module::enableWithDependencies($officeId, (int) $mod['id'], Auth::currentUserId());
                 if ($auto) {
                     $autoActions = array_merge($autoActions, array_map(fn($s) => "+{$s}", $auto));
                 }
             } elseif (!$shouldEnable && $currentlyEnabled) {
-                // Disabling — auto-disable dependent modules
-                $auto = Module::disableWithDependents((int) $id, (int) $mod['id'], Auth::currentUserId());
+                $auto = Module::disableWithDependents($officeId, (int) $mod['id'], Auth::currentUserId());
                 if ($auto) {
                     $autoActions = array_merge($autoActions, array_map(fn($s) => "-{$s}", $auto));
                 }
             } else {
-                Module::setOfficeModule((int) $id, (int) $mod['id'], $shouldEnable, Auth::currentUserId());
+                Module::setOfficeModule($officeId, (int) $mod['id'], $shouldEnable, Auth::currentUserId());
             }
         }
-
-        $logMsg = 'Modules updated for office: ' . $office['name'] . ' (ID: ' . $id . ')';
-        if ($autoActions) {
-            $logMsg .= ' | Auto-cascade: ' . implode(', ', array_unique($autoActions));
-        }
-
-        AuditLog::log('admin', Auth::currentUserId(), 'office_modules_updated', $logMsg, 'office', (int) $id);
-        Session::flash('success', 'modules_saved');
-        $this->redirect("/admin/offices/{$id}/modules");
+        return $autoActions;
     }
 
     // ── Client Module Management ─────────────────────
@@ -1431,6 +1457,7 @@ class AdminController extends Controller
             'system_name', 'system_description', 'primary_color', 'secondary_color', 'accent_color',
             'privacy_policy_enabled', 'privacy_policy_text',
             '2fa_enabled', '2fa_required', '2fa_required_admin', '2fa_required_client', '2fa_required_office',
+            'trusted_device_ttl_days',
             'support_contact_name', 'support_contact_email', 'support_contact_phone',
             'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_user', 'smtp_from_email', 'smtp_from_name',
             'mobile_api_enabled',

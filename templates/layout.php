@@ -55,9 +55,44 @@
 
     <nav class="navbar">
         <div class="container nav-container">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div class="nav-topbar-left" style="display:flex;align-items:center;gap:12px;">
                 <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-open')" aria-label="Menu">&#9776;</button>
+                <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>"
+                   class="topbar-logo">
+                    <img src="<?= htmlspecialchars($branding['logo_path'] ?? '/assets/img/logo.svg') ?>"
+                         alt="BiLLU" class="topbar-logo-light">
+                    <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>"
+                         alt="BiLLU" class="topbar-logo-dark">
+                </a>
             </div>
+
+            <?php
+            // NBP rates strip — pulled lazily; the service caches results in Redis (TTL 12 h)
+            // so this is a cheap lookup on every authenticated page render.
+            $topbarRates = [];
+            $topbarRatesDate = null;
+            try {
+                $topbarRates = \App\Services\NbpExchangeRateService::getLatestRates(['EUR', 'USD', 'GBP']);
+                foreach ($topbarRates as $r) {
+                    if (!empty($r['date'])) { $topbarRatesDate = $r['date']; break; }
+                }
+            } catch (\Throwable) { /* fail-silent — strip just hides */ }
+            ?>
+            <?php if (!empty($topbarRates)): ?>
+            <div class="nav-topbar-rates" style="display:flex;align-items:center;gap:14px;flex:1;justify-content:center;font-size:13px;color:var(--gray-600);overflow:hidden;white-space:nowrap;">
+                <span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    <?= $lang('nbp_exchange_rates') ?>:
+                </span>
+                <?php if ($topbarRatesDate): ?>
+                    <span style="color:var(--gray-400);"><?= htmlspecialchars($topbarRatesDate) ?></span>
+                <?php endif; ?>
+                <?php foreach ($topbarRates as $cur => $info): ?>
+                    <span><strong><?= $cur ?></strong> <?= number_format((float)$info['rate'], 4, ',', '') ?></span>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <div class="nav-topbar-right">
                 <?php
                     $notifUrl = $isAdmin ? '/admin/notifications' : (($isOffice || $isEmployee) ? '/office/notifications' : '/client/notifications');
@@ -99,13 +134,6 @@
 
     <!-- ===== SIDEBAR ===== -->
     <aside class="app-sidebar" id="app-sidebar">
-        <div class="sidebar-logo">
-            <a href="<?= $isAdmin ? '/admin' : (($isOffice || $isEmployee) ? '/office' : ($isClientEmployee ? '/employee' : '/client')) ?>">
-                <img src="<?= htmlspecialchars($branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-light">
-                <img src="<?= htmlspecialchars($branding['logo_path_dark'] ?? $branding['logo_path'] ?? '/assets/img/logo.svg') ?>" alt="BiLLU" class="sidebar-logo-dark">
-            </a>
-            <div class="sidebar-logo-text">Panel</div>
-        </div>
         <nav class="sidebar-nav">
             <?php if ($isAdmin): ?>
                 <!-- ADMIN SIDEBAR -->
@@ -220,7 +248,9 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                     <?= $isEmployee ? 'Przypisani Klienci' : $lang('clients') ?>
                 </a>
-                <?php if (!$isEmployee && $canModule('hr')): ?>
+                <?php /* Office staff (accountants who log in & get clients assigned) — core feature,
+                         NOT the HR/payroll module. Don't gate on $canModule('hr'). */ ?>
+                <?php if (!$isEmployee): ?>
                 <a href="/office/employees" class="sidebar-link <?= str_starts_with($currentPath, '/office/employees') ? 'active' : '' ?>">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                     <?= $lang('employees') ?>
