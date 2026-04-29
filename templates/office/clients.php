@@ -8,15 +8,13 @@
             <th class="hide-mobile"><?= $lang('representative') ?></th>
             <th class="hide-mobile">Email</th>
             <th><?= $lang('stats') ?></th>
-            <th class="hide-mobile"><?= $lang('last_login') ?></th>
-            <th><?= $lang('workflow_status') ?></th>
             <th><?= $lang('notes') ?></th>
             <th><?= $lang('actions') ?></th>
         </tr>
     </thead>
     <tbody>
         <?php if (empty($clients)): ?>
-            <tr><td colspan="9" class="text-center text-muted"><?= $lang('no_clients') ?></td></tr>
+            <tr><td colspan="7" class="text-center text-muted"><?= $lang('no_clients') ?></td></tr>
         <?php endif; ?>
         <?php foreach ($clients as $c): ?>
         <tr>
@@ -28,28 +26,6 @@
                 <span class="badge badge-warning"><?= $c['stats']['pending'] ?? 0 ?> <?= $lang('pending') ?></span>
                 <span class="badge badge-success"><?= $c['stats']['accepted'] ?? 0 ?> <?= $lang('accepted') ?></span>
                 <span class="badge badge-error"><?= $c['stats']['rejected'] ?? 0 ?> <?= $lang('rejected') ?></span>
-            </td>
-            <td class="hide-mobile"><?= $c['last_login_at'] ? date('Y-m-d H:i', strtotime($c['last_login_at'])) : '-' ?></td>
-            <td>
-                <?php
-                    $steps = ['import', 'weryfikacja', 'jpk', 'zamkniety'];
-                    $stepLabels = ['I', 'W', 'J', 'Z'];
-                    $stepTitles = [$lang('workflow_import'), $lang('workflow_verification'), $lang('workflow_jpk'), $lang('workflow_closed')];
-                    $currentStep = array_search($c['workflow_status'] ?? 'import', $steps);
-                ?>
-                <div style="display:flex; align-items:center; gap:3px;">
-                    <?php foreach ($steps as $si => $s): ?>
-                    <div style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; <?= $si <= $currentStep ? 'background:var(--success); color:#fff;' : 'background:var(--gray-200); color:var(--gray-500);' ?>" title="<?= $stepTitles[$si] ?>"><?= $stepLabels[$si] ?></div>
-                    <?php endforeach; ?>
-                    <?php if ($currentStep < count($steps) - 1): ?>
-                    <form method="POST" action="/office/clients/<?= $c['id'] ?>/status" style="display:inline; margin-left:4px;">
-                        <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
-                        <button type="submit" class="btn btn-xs" title="<?= $lang('workflow_advanced') ?>" style="padding:2px 6px;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                        </button>
-                    </form>
-                    <?php endif; ?>
-                </div>
             </td>
             <td>
                 <a href="/office/clients/<?= $c['id'] ?>/notes" class="btn btn-xs" title="<?= $lang('internal_notes') ?>" style="display:inline-flex; align-items:center; gap:4px;">
