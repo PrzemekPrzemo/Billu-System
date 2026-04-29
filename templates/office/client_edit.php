@@ -4,6 +4,7 @@
     <a href="/office/clients" class="btn btn-sm">&larr; <?= $lang('back_to_clients') ?></a>
     <a href="/office/clients/<?= $clientData['id'] ?>/cost-centers" class="btn btn-sm" style="margin-left:6px;"><?= $lang('cost_centers_short') ?></a>
     <a href="/office/clients/<?= $clientData['id'] ?>/notes" class="btn btn-sm" style="margin-left:6px;"><?= $lang('notes') ?></a>
+    <a href="/office/clients/<?= $clientData['id'] ?>/registers" class="btn btn-sm" style="margin-left:6px;" title="GUS / KRS / CEIDG / CRBR — dane z rejestrów państwowych">Dane z rejestrów</a>
     <a href="/office/clients/<?= $clientData['id'] ?>/files" class="btn btn-sm" style="margin-left:6px;">Pliki</a>
 </p>
 
