@@ -114,10 +114,26 @@
                 <td>
                     <?php if ($inv['status'] === 'accepted'): ?>
                         <span class="badge badge-success"><?= $lang('accepted') ?></span>
+                        <?php if (!empty($inv['whitelist_override_at'])): ?>
+                            <br><span class="badge" style="background:#fef3c7;color:#92400e;font-size:10px;margin-top:3px;" title="<?= htmlspecialchars($inv['whitelist_override_reason'] ?? '') ?>">
+                                <?= $lang('whitelist_override_badge') ?>
+                            </span>
+                        <?php endif; ?>
                     <?php elseif ($inv['status'] === 'rejected'): ?>
                         <span class="badge badge-error"><?= $lang('rejected') ?></span>
                     <?php else: ?>
                         <span class="badge badge-warning"><?= $lang('pending') ?></span>
+                        <?php if (!empty($inv['whitelist_failed'])): ?>
+                            <br><span class="badge" style="background:#fee2e2;color:#991b1b;font-size:10px;margin-top:3px;">
+                                <?= $lang('whitelist_failed_badge') ?>
+                            </span>
+                            <button type="button"
+                                    class="btn btn-sm btn-warning"
+                                    style="margin-top:6px;font-size:11px;padding:4px 8px;"
+                                    onclick="openWhitelistOverride(<?= (int)$inv['id'] ?>, <?= htmlspecialchars(json_encode($inv['seller_name'] . ' (' . $inv['seller_nip'] . ')'), ENT_QUOTES) ?>)">
+                                <?= $lang('whitelist_override_button') ?>
+                            </button>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </td>
                 <td class="text-muted">
@@ -166,4 +182,46 @@ function loadComments(invoiceId) {
         });
 }
 function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function openWhitelistOverride(invoiceId, sellerLabel) {
+    document.getElementById('wlo-form').action = '/office/invoices/' + invoiceId + '/whitelist-override';
+    document.getElementById('wlo-seller').textContent = sellerLabel;
+    document.getElementById('wlo-reason').value = '';
+    document.getElementById('wlo-modal').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('wlo-reason').focus(); }, 50);
+}
+function closeWhitelistOverride() {
+    document.getElementById('wlo-modal').style.display = 'none';
+}
 </script>
+
+<!-- VAT whitelist override modal — accept on behalf of client with mandatory justification -->
+<div id="wlo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+    <form id="wlo-form" method="POST" action=""
+          style="background:var(--white,#fff);border-radius:8px;max-width:560px;width:100%;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\App\Core\Session::generateCsrfToken()) ?>">
+
+        <h2 style="margin-top:0;font-size:18px;"><?= $lang('whitelist_override_title') ?></h2>
+        <p class="text-muted" style="font-size:13px;margin-bottom:8px;">
+            <?= $lang('whitelist_override_intro') ?>
+        </p>
+        <p style="font-size:13px;margin:0 0 16px 0;">
+            <?= $lang('whitelist_override_seller') ?>: <strong id="wlo-seller"></strong>
+        </p>
+
+        <div class="form-group">
+            <label class="form-label" for="wlo-reason">
+                <?= $lang('whitelist_override_reason_label') ?> *
+            </label>
+            <textarea id="wlo-reason" name="reason" class="form-input" rows="4" required
+                      minlength="10" maxlength="1000"
+                      placeholder="<?= htmlspecialchars($lang('whitelist_override_reason_placeholder')) ?>"></textarea>
+            <small class="form-hint"><?= $lang('whitelist_override_reason_hint') ?></small>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+            <button type="button" class="btn btn-secondary" onclick="closeWhitelistOverride()"><?= $lang('cancel') ?></button>
+            <button type="submit" class="btn btn-warning"><?= $lang('whitelist_override_confirm') ?></button>
+        </div>
+    </form>
+</div>

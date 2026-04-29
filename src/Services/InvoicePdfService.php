@@ -51,6 +51,15 @@ class InvoicePdfService
 
         IssuedInvoice::update($invoiceId, ['pdf_path' => 'storage/invoices/' . $filename]);
 
+        // Best-effort SFTP push (no-op when office.sftp_enabled=0 OR client.sftp_push_invoices=0).
+        $client = \App\Models\Client::findById((int) $invoice['client_id']);
+        if ($client && !empty($client['office_id'])) {
+            \App\Services\SftpUploadService::enqueue(
+                (int) $client['office_id'], (int) $invoice['client_id'],
+                'invoices', $path, (string) $invoiceId
+            );
+        }
+
         return $path;
     }
 

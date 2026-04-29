@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Database;
 use App\Core\ModuleAccess;
 use App\Core\Session;
 use App\Core\Language;
@@ -284,6 +285,58 @@ class OfficeController extends Controller
             'commentCounts' => $commentCounts,
             'filters'       => ['status' => $filterStatus, 'search' => $filterSearch],
         ]);
+    }
+
+    /**
+     * Office (or office-employee assigned to the client) accepts a cost invoice
+     * that the client cannot accept on their own because whitelist_failed=1.
+     * Requires a written justification (>=10 chars). All four tenant gates apply:
+     * invoice → batch → client → office_id, plus the office-employee assignment
+     * filter via requireClientForOffice. Auditable.
+     */
+    public function invoiceWhitelistOverride(string $id): void
+    {
+        $invoiceId = (int) $id;
+        if (!$this->validateCsrf()) { $this->redirect('/office/batches'); return; }
+
+        $invoice = Invoice::findById($invoiceId);
+        if (!$invoice) { $this->redirect('/office/batches'); return; }
+
+        // Tenant gate — the invoice must belong to a client of THIS office, AND
+        // (for office-employees) the client must be in the assignment filter.
+        if ($this->requireClientForOffice((int) $invoice['client_id'], '/office/batches') === null) {
+            return;
+        }
+
+        // Override only makes sense when (a) the row is actually whitelist-failed
+        // and (b) the invoice is still pending. Already-accepted/rejected: no-op.
+        if (empty($invoice['whitelist_failed']) || ($invoice['status'] ?? '') !== 'pending') {
+            Session::flash('error', 'whitelist_override_not_applicable');
+            $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
+            return;
+        }
+
+        $reason = trim($_POST['reason'] ?? '');
+        if (mb_strlen($reason) < 10) {
+            Session::flash('error', 'whitelist_override_reason_required');
+            $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
+            return;
+        }
+        if (mb_strlen($reason) > 1000) {
+            $reason = mb_substr($reason, 0, 1000);
+        }
+
+        $byType = Auth::isEmployee() ? 'employee' : 'office';
+        $byId   = (int) Auth::currentUserId();
+
+        Invoice::acceptWithWhitelistOverride($invoiceId, $reason, $byType, $byId);
+
+        AuditLog::log($byType, $byId, 'invoice_whitelist_override',
+            "Invoice #{$invoiceId} accepted on behalf of client #{$invoice['client_id']} (whitelist override). Reason: " . mb_substr($reason, 0, 200),
+            'invoice', $invoiceId);
+
+        Session::flash('success', 'whitelist_override_applied');
+        $this->redirect('/office/batches/' . (int) $invoice['batch_id']);
     }
 
     public function importForm(): void
@@ -1044,6 +1097,117 @@ class OfficeController extends Controller
             Session::flash('error', 'client_not_assigned');
             $this->redirect('/office/clients');
         }
+    }
+
+    // ── SFTP push (office admin only) ─────────────
+
+    public function sftpForm(): void
+    {
+        if (Auth::isEmployee()) { $this->redirect('/office'); return; }
+        $officeId = (int) Session::get('office_id');
+        $office = Office::findById($officeId);
+        $recent = Database::getInstance()->fetchAll(
+            "SELECT id, source_type, status, attempts, last_error, created_at, sent_at, remote_filename
+             FROM sftp_queue WHERE office_id = ?
+             ORDER BY id DESC LIMIT 50",
+            [$officeId]
+        );
+        $this->render('office/sftp', ['office' => $office, 'recent' => $recent]);
+    }
+
+    public function sftpUpdate(): void
+    {
+        if (Auth::isEmployee()) { $this->redirect('/office'); return; }
+        if (!$this->validateCsrf()) { $this->redirect('/office/sftp'); return; }
+
+        $officeId = (int) Session::get('office_id');
+        $data = [
+            'sftp_enabled'   => isset($_POST['sftp_enabled']) ? 1 : 0,
+            'sftp_host'      => trim($_POST['sftp_host'] ?? ''),
+            'sftp_port'      => max(1, min(65535, (int) ($_POST['sftp_port'] ?? 22))),
+            'sftp_user'      => trim($_POST['sftp_user'] ?? ''),
+            'sftp_base_path' => trim($_POST['sftp_base_path'] ?? '/') ?: '/',
+        ];
+
+        // Encrypt secrets only if user actually typed something — empty input
+        // keeps the previously stored ciphertext intact.
+        if (!empty($_POST['sftp_password'])) {
+            $data['sftp_password_enc'] = \App\Core\Crypto::encrypt((string) $_POST['sftp_password'], 'sftp.password');
+        }
+        if (!empty($_POST['sftp_private_key'])) {
+            $data['sftp_private_key_enc'] = \App\Core\Crypto::encrypt((string) $_POST['sftp_private_key'], 'sftp.private_key');
+        }
+        if (isset($_POST['sftp_key_passphrase'])) {
+            // Empty value clears it; non-empty re-encrypts.
+            $data['sftp_key_passphrase_enc'] = $_POST['sftp_key_passphrase'] === ''
+                ? null
+                : \App\Core\Crypto::encrypt((string) $_POST['sftp_key_passphrase'], 'sftp.key_passphrase');
+        }
+        if (!empty($_POST['sftp_clear_password'])) { $data['sftp_password_enc'] = null; }
+        if (!empty($_POST['sftp_clear_private_key'])) { $data['sftp_private_key_enc'] = null; }
+        if (!empty($_POST['sftp_host_fingerprint'])) {
+            $data['sftp_host_fingerprint'] = trim($_POST['sftp_host_fingerprint']);
+        }
+
+        $allowed = array_merge(Office::FILLABLE, [
+            'sftp_enabled', 'sftp_host', 'sftp_port', 'sftp_user',
+            'sftp_password_enc', 'sftp_private_key_enc', 'sftp_key_passphrase_enc',
+            'sftp_base_path', 'sftp_host_fingerprint',
+        ]);
+        Office::update($officeId, $data, $allowed);
+
+        AuditLog::log('office', $officeId, 'sftp_config_updated',
+            'SFTP config updated (host=' . ($data['sftp_host'] ?? '') . ')',
+            'office', $officeId);
+        Session::flash('success', 'sftp_saved');
+        $this->redirect('/office/sftp');
+    }
+
+    /** AJAX endpoint behind 'Test connection' button. Returns JSON. */
+    public function sftpTest(): void
+    {
+        header('Content-Type: application/json');
+        if (Auth::isEmployee()) { echo json_encode(['ok' => false, 'message' => 'forbidden']); return; }
+        if (!$this->validateCsrf()) { echo json_encode(['ok' => false, 'message' => 'csrf']); return; }
+
+        $officeId = (int) Session::get('office_id');
+        $office = Office::findById($officeId);
+
+        // Build the same config the worker would use, but allow the form's
+        // CURRENTLY-TYPED password/key to override the stored ciphertext —
+        // so admin can validate new credentials BEFORE saving.
+        $cfg = [
+            'host'           => trim($_POST['sftp_host'] ?? $office['sftp_host'] ?? ''),
+            'port'           => max(1, min(65535, (int) ($_POST['sftp_port'] ?? $office['sftp_port'] ?? 22))),
+            'user'           => trim($_POST['sftp_user'] ?? $office['sftp_user'] ?? ''),
+            'base_path'      => trim($_POST['sftp_base_path'] ?? $office['sftp_base_path'] ?? '/'),
+            'fingerprint'    => $office['sftp_host_fingerprint'] ?? null,
+        ];
+        if (!empty($_POST['sftp_password'])) {
+            $cfg['password'] = (string) $_POST['sftp_password'];
+        } elseif (!empty($office['sftp_password_enc'])) {
+            $cfg['password'] = \App\Core\Crypto::decrypt((string) $office['sftp_password_enc'], 'sftp.password');
+        }
+        if (!empty($_POST['sftp_private_key'])) {
+            $cfg['private_key'] = (string) $_POST['sftp_private_key'];
+        } elseif (!empty($office['sftp_private_key_enc'])) {
+            $cfg['private_key'] = \App\Core\Crypto::decrypt((string) $office['sftp_private_key_enc'], 'sftp.private_key');
+        }
+        if (!empty($office['sftp_key_passphrase_enc'])) {
+            $cfg['key_passphrase'] = \App\Core\Crypto::decrypt((string) $office['sftp_key_passphrase_enc'], 'sftp.key_passphrase');
+        }
+
+        $result = \App\Services\SftpUploadService::testConnection($cfg);
+        Database::getInstance()->update('offices', [
+            'sftp_last_test_at'     => date('Y-m-d H:i:s'),
+            'sftp_last_test_result' => $result['ok'] ? 'ok' : 'failed',
+        ], 'id = ?', [$officeId]);
+
+        AuditLog::log('office', $officeId, 'sftp_test_connection',
+            ($result['ok'] ? 'OK ' : 'FAIL ') . substr($result['message'], 0, 200),
+            'office', $officeId);
+
+        echo json_encode($result);
     }
 
     // ── Office Settings (logo) ──────────────────────
@@ -2026,6 +2190,24 @@ class OfficeController extends Controller
                 'alert_days_before' => max(1, min(30, (int) ($_POST['alert_days_before'] ?? 5))),
             ]);
             Session::flash('success', 'tax_config_saved');
+        } elseif ($form === 'sftp') {
+            // Sanitize subdir: no '..' / no leading slash. Empty = use NIP at push time.
+            $subdir = trim((string) ($_POST['sftp_subdir'] ?? ''));
+            $subdir = trim(preg_replace('#[\\\\]#', '/', $subdir), '/');
+            if ($subdir !== '' && (str_contains($subdir, '..') || preg_match('#[<>"\']#', $subdir))) {
+                $subdir = '';
+            }
+            Client::update($clientId, [
+                'sftp_push_files'    => isset($_POST['sftp_push_files'])    ? 1 : 0,
+                'sftp_push_messages' => isset($_POST['sftp_push_messages']) ? 1 : 0,
+                'sftp_push_invoices' => isset($_POST['sftp_push_invoices']) ? 1 : 0,
+                'sftp_push_exports'  => isset($_POST['sftp_push_exports'])  ? 1 : 0,
+                'sftp_push_payslips' => isset($_POST['sftp_push_payslips']) ? 1 : 0,
+                'sftp_subdir'        => $subdir ?: null,
+            ]);
+            AuditLog::log('office', (int) Session::get('office_id'), 'client_sftp_config_updated',
+                "Client #{$clientId} SFTP push flags updated", 'client', $clientId);
+            Session::flash('success', 'client_updated');
         }
 
         $this->redirect("/office/clients/{$clientId}/edit");

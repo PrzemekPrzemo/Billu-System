@@ -17,6 +17,8 @@ class Client
         'language', 'is_active',
         'mobile_app_enabled', 'file_storage_path',
         'ip_whitelist', 'can_send_invoices',
+        'sftp_push_files', 'sftp_push_messages', 'sftp_push_invoices',
+        'sftp_push_exports', 'sftp_push_payslips', 'sftp_subdir',
     ];
 
     /** Admin-only fields. Combine with FILLABLE via Client::update($id, $data, Client::adminAllowedFields()). */

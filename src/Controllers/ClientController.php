@@ -5852,4 +5852,15 @@ table.items td{padding:7px 6px;border-bottom:1px solid #f3f4f6}
         echo $decl['xml_content'];
         exit;
     }
+
+    // ── Contracts module — read-only listing for the client ──
+
+    public function contractsIndex(): void
+    {
+        ModuleAccess::requireModule('contracts');
+        Auth::requireClient();
+        $clientId = (int) Session::get('client_id');
+        $forms = \App\Models\ContractForm::findByClient($clientId);
+        $this->render('client/contracts_index', ['forms' => $forms]);
+    }
 }

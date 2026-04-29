@@ -107,6 +107,26 @@ class Invoice
         self::invalidateAgg(self::lookupClientId($id));
     }
 
+    /**
+     * Accept an invoice on behalf of the client even though whitelist_failed=1.
+     * The justification is mandatory (caller must validate non-empty before calling).
+     * Records who, when and why on the row, and sets status to 'accepted' in a single
+     * write so the cache invalidation below fires once.
+     */
+    public static function acceptWithWhitelistOverride(int $id, string $reason, string $byType, int $byId): void
+    {
+        Database::getInstance()->update('invoices', [
+            'status'                     => 'accepted',
+            'verified_at'                => date('Y-m-d H:i:s'),
+            'comment'                    => $reason,
+            'whitelist_override_reason'  => $reason,
+            'whitelist_override_by_type' => $byType,
+            'whitelist_override_by_id'   => $byId,
+            'whitelist_override_at'      => date('Y-m-d H:i:s'),
+        ], 'id = ?', [$id]);
+        self::invalidateAgg(self::lookupClientId($id));
+    }
+
     public static function autoRejectWhitelistFailed(int $batchId): int
     {
         $stmt = Database::getInstance()->query(

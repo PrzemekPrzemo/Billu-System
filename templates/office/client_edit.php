@@ -20,6 +20,7 @@
 <div class="tabs" style="margin-bottom:20px;">
     <a href="#" class="tab-link active" onclick="showTab('contact', this); return false;"><?= $lang('contact_data') ?></a>
     <a href="#" class="tab-link" onclick="showTab('tax', this); return false;"><?= $lang('tax_calendar_config') ?></a>
+    <a href="#" class="tab-link" onclick="showTab('sftp', this); return false;">SFTP</a>
 </div>
 
 <!-- Tab: Contact Data -->
@@ -122,6 +123,61 @@
             </div>
 
             <button type="submit" class="btn btn-primary"><?= $lang('save') ?></button>
+        </form>
+    </div>
+</div>
+
+<!-- Tab: SFTP push -->
+<div id="tab-sftp" class="tab-content" style="display:none;">
+    <div class="form-card" style="padding:20px; max-width:680px;">
+        <?php
+            $office = \App\Models\Office::findById((int) \App\Core\Session::get('office_id'));
+            $sftpReady = !empty($office['sftp_enabled']) && !empty($office['sftp_host']);
+        ?>
+        <?php if (!$sftpReady): ?>
+            <div class="alert alert-warning" style="margin-bottom:16px;">
+                Najpierw skonfiguruj serwer SFTP biura w
+                <a href="/office/sftp" style="font-weight:600;">Ustawienia SFTP</a>.
+                Bez aktywnej konfiguracji checkboxy poniżej nic nie zrobią.
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" action="/office/clients/<?= $clientData['id'] ?>/edit">
+            <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
+            <input type="hidden" name="_form" value="sftp">
+
+            <p class="text-muted" style="margin-top:0;">
+                Wybierz, jakie pliki tego klienta mają być automatycznie wysyłane na SFTP biura.
+                Pliki idą na <code>{base_path biura}/{podkatalog poniżej}/{kategoria}/{nazwa pliku}</code>.
+            </p>
+
+            <div class="form-group">
+                <label class="form-label">Podkatalog klienta na SFTP (opcjonalnie)</label>
+                <input type="text" name="sftp_subdir" class="form-input"
+                       placeholder="np. <?= htmlspecialchars($clientData['nip'] ?? '') ?> (domyślnie)"
+                       value="<?= htmlspecialchars($clientData['sftp_subdir'] ?? '') ?>">
+                <small class="form-hint">Pusto = NIP klienta. Dopuszczalne tylko zwykłe nazwy katalogów (bez „..").</small>
+            </div>
+
+            <h3 style="margin-top:20px;font-size:14px;">Co pushować</h3>
+            <?php
+            $checks = [
+                'sftp_push_files'    => 'Pliki klienta (HR / dokumenty)',
+                'sftp_push_messages' => 'Załączniki wiadomości',
+                'sftp_push_invoices' => 'Faktury sprzedaży (PDF)',
+                'sftp_push_exports'  => 'Eksporty (JPK, raporty)',
+                'sftp_push_payslips' => 'Listy płac i paski wynagrodzeń',
+            ];
+            foreach ($checks as $col => $label):
+            ?>
+                <label class="checkbox-label" style="display:block;margin:6px 0;">
+                    <input type="checkbox" name="<?= $col ?>" value="1"
+                           <?= !empty($clientData[$col]) ? 'checked' : '' ?>>
+                    <?= htmlspecialchars($label) ?>
+                </label>
+            <?php endforeach; ?>
+
+            <button type="submit" class="btn btn-primary" style="margin-top:16px;"><?= $lang('save') ?></button>
         </form>
     </div>
 </div>

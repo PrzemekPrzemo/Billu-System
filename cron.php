@@ -127,4 +127,9 @@ echo "Cleaning up expired trusted devices...\n";
 $removed = \App\Models\TrustedDevice::cleanupExpired();
 echo "  Removed: {$removed} row(s)\n";
 
+// 14. Expire pending contract forms past their TTL
+echo "Expiring overdue contract forms...\n";
+$expired = \App\Models\ContractForm::expireOverdue();
+echo "  Expired: {$expired} form(s)\n";
+
 echo "[" . date('Y-m-d H:i:s') . "] Cron job completed.\n";

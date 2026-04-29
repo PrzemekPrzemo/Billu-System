@@ -256,6 +256,12 @@
                     <?= $lang('employees') ?>
                 </a>
                 <?php endif; ?>
+                <?php if ($canModule('contracts')): ?>
+                <a href="/office/contracts" class="sidebar-link <?= str_starts_with($currentPath, '/office/contracts') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 12h6M9 16h4"/></svg>
+                    <?= $lang('contracts_module') ?>
+                </a>
+                <?php endif; ?>
 
                 <div class="sidebar-group-label"><?= $lang('nav_invoices') ?></div>
                 <?php if (!$isEmployee): ?>
@@ -363,6 +369,10 @@
                 <a href="/office/email-settings" class="sidebar-link <?= $currentPath === '/office/email-settings' ? 'active' : '' ?>">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     <?= $lang('office_email_settings') ?>
+                </a>
+                <a href="/office/sftp" class="sidebar-link <?= $currentPath === '/office/sftp' ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                    SFTP
                 </a>
                 <?php endif; ?>
                 <a href="/office/security" class="sidebar-link <?= $currentPath === '/office/security' ? 'active' : '' ?>">
@@ -525,6 +535,12 @@
                 <a href="/client/ksef/certificates" class="sidebar-link <?= str_starts_with($currentPath, '/client/ksef/certificates') ? 'active' : '' ?>">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                     <?= $lang('certificates') ?>
+                </a>
+                <?php endif; ?>
+                <?php if ($canModule('contracts')): ?>
+                <a href="/client/contracts" class="sidebar-link <?= str_starts_with($currentPath, '/client/contracts') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 12h6M9 16h4"/></svg>
+                    <?= $lang('contracts_my') ?>
                 </a>
                 <?php endif; ?>
                 <a href="/client/security" class="sidebar-link <?= $currentPath === '/client/security' ? 'active' : '' ?>">
