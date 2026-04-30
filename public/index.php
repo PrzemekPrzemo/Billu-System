@@ -483,6 +483,12 @@ $router->get('/client/sales/{id}/upo', [ClientController::class, 'issuedInvoiceU
 $router->post('/client/sales/{id}/duplicate', [ClientController::class, 'issuedInvoiceDuplicate']);
 $router->get('/client/sales/{id}/correction', [ClientController::class, 'issuedInvoiceCorrection']);
 
+// ── e-Urząd Skarbowy module (PR-2 office UI; submission in PR-3, KAS in PR-4) ──
+$router->get ('/office/eus',                                      [\App\Controllers\OfficeEusController::class, 'index']);
+$router->get ('/office/eus/{clientId}/configure',                 [\App\Controllers\OfficeEusController::class, 'configureForm']);
+$router->post('/office/eus/{clientId}/configure',                 [\App\Controllers\OfficeEusController::class, 'configureSave']);
+$router->post('/office/eus/{clientId}/test-connection',           [\App\Controllers\OfficeEusController::class, 'testConnection']);
+
 // ── Contracts module ─────────────────────────────────────
 // Office side
 $router->get ('/office/contracts',                                [\App\Controllers\ContractController::class, 'dashboard']);
