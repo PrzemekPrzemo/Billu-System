@@ -15,6 +15,7 @@ use App\Models\EusDocument;
 use App\Models\OfficeEmployee;
 use App\Services\EusApiService;
 use App\Services\EusCertificateService;
+use App\Services\EusCorrespondenceService;
 use App\Services\EusProfilZaufanyService;
 use App\Services\EusSubmissionService;
 
@@ -278,5 +279,81 @@ class OfficeEusController extends Controller
             Session::flash('error', 'Nie udało się zakolejkować wysyłki: ' . $e->getMessage());
         }
         $this->redirect("/office/eus/{$cid}/configure");
+    }
+
+    /**
+     * GET /office/eus/letter/{documentId}/reply — render reply form
+     * for a specific KAS letter. Office_employee assignment is
+     * enforced through the document's client_id.
+     */
+    public function replyForm(string $documentId): void
+    {
+        $docId    = (int) $documentId;
+        $officeId = (int) Session::get('office_id');
+
+        $doc = EusDocument::findByIdForOffice($docId, $officeId);
+        if (!$doc || $doc['direction'] !== 'in' || $doc['bramka'] !== 'C') {
+            $this->redirect('/office/eus');
+            return;
+        }
+        // Per-employee assignment filter — same gate as other endpoints.
+        $client = $this->requireClientForOffice((int) $doc['client_id']);
+        if ($client === null) return;
+
+        $this->render('office/eus_reply', [
+            'document' => $doc,
+            'client'   => $client,
+        ]);
+    }
+
+    /**
+     * POST /office/eus/letter/{documentId}/reply — compose + submit.
+     * Synchronous — replies are short and the office expects an
+     * immediate confirmation (unlike Bramka B submissions which run
+     * async via the cron drainer).
+     */
+    public function replySubmit(string $documentId): void
+    {
+        if (!$this->validateCsrf()) {
+            $this->redirect('/office/eus');
+            return;
+        }
+        $docId    = (int) $documentId;
+        $officeId = (int) Session::get('office_id');
+        $doc = EusDocument::findByIdForOffice($docId, $officeId);
+        if (!$doc || $doc['direction'] !== 'in' || $doc['bramka'] !== 'C') {
+            $this->redirect('/office/eus');
+            return;
+        }
+        $client = $this->requireClientForOffice((int) $doc['client_id']);
+        if ($client === null) return;
+
+        $body = trim((string) ($_POST['body'] ?? ''));
+        if ($body === '' || mb_strlen($body) > 50000) {
+            Session::flash('error', 'Treść odpowiedzi musi mieć od 1 do 50 000 znaków.');
+            $this->redirect("/office/eus/letter/{$docId}/reply");
+            return;
+        }
+
+        try {
+            $svc = new EusCorrespondenceService();
+            $replyId = $svc->composeReply($docId, ['body' => $body]);
+            $r = $svc->submitReply($replyId);
+
+            AuditLog::log(
+                Auth::isEmployee() ? 'office_employee' : 'office',
+                (int) (Auth::isEmployee() ? Session::get('employee_id') : Session::get('office_id')),
+                'eus_kas_reply_submitted',
+                "doc #{$docId} reply_doc #{$replyId} ref={$r['reply_reference_no']}",
+                'eus_document'
+            );
+
+            Session::flash('success',
+                "Odpowiedź wysłana do e-US. Status: {$r['status']}. Numer referencyjny odpowiedzi: {$r['reply_reference_no']}.");
+            $this->redirect("/office/eus");
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Nie udało się wysłać odpowiedzi: ' . $e->getMessage());
+            $this->redirect("/office/eus/letter/{$docId}/reply");
+        }
     }
 }

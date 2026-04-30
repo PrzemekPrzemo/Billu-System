@@ -272,6 +272,45 @@ class CronService
      * Checks at 30, 14, and 7 days before expiry.
      */
     /**
+     * Poll Bramka C for new KAS letters across all due clients.
+     *
+     * Iterates client_eus_configs.findDueForPolling() (which already
+     * applies the throttle on last_poll_at + poll_interval_minutes),
+     * spawns one bg poller per client. Each spawned process advances
+     * last_poll_at on its own — this method only orchestrates fanout.
+     *
+     * @return array{spawned:int, errors:string[]}
+     */
+    public static function pollEusCorrespondence(int $maxPerTick = 20): array
+    {
+        $result   = ['spawned' => 0, 'errors' => []];
+        $configs  = \App\Models\EusConfig::findDueForPolling();
+        $configs  = array_slice($configs, 0, $maxPerTick);
+
+        $scriptDir = realpath(__DIR__ . '/../../scripts') ?: (__DIR__ . '/../../scripts');
+        $script    = $scriptDir . '/eus_poll_c_bg.php';
+        if (!is_file($script)) {
+            $result['errors'][] = 'eus_poll_c_bg.php missing';
+            return $result;
+        }
+        $phpBin  = self::detectPhpBinary();
+        $logPath = __DIR__ . '/../../storage/logs/eus/cron-spawn.log';
+
+        foreach ($configs as $cfg) {
+            $cmd = escapeshellcmd($phpBin) . ' ' . escapeshellarg($script) . ' '
+                 . escapeshellarg((string) $cfg['client_id']) . ' >> '
+                 . escapeshellarg($logPath) . ' 2>&1 &';
+            try {
+                @exec($cmd);
+                $result['spawned']++;
+            } catch (\Throwable $e) {
+                $result['errors'][] = "client {$cfg['client_id']}: " . $e->getMessage();
+            }
+        }
+        return $result;
+    }
+
+    /**
      * Drain pending eus_jobs by spawning the appropriate bg script.
      *
      * Called every cron tick (~5min on Plesk). Per-job advances are

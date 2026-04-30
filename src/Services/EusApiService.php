@@ -135,6 +135,48 @@ class EusApiService
         );
     }
 
+    // ─── Bramka C — KAS correspondence ───────────────────
+
+    /**
+     * Poll for new incoming KAS letters for a given NIP. Mock is
+     * deterministic by NIP last digit (see DemoEusMockService).
+     *
+     * @return array<int,array<string,mixed>> letter envelopes:
+     *   [{reference_no, doc_kind, subject, urzad_name, received_at,
+     *     requires_reply, reply_deadline, body}]
+     */
+    public function pollC(string $environment, string $nip): array
+    {
+        if ($environment === 'mock') {
+            return DemoEusMockService::pollKasLetters($nip);
+        }
+        throw new \RuntimeException(
+            "Real e-US Bramka C poll not yet implemented for env='{$environment}'."
+        );
+    }
+
+    /**
+     * Submit a reply to a KAS letter. Caller has already produced
+     * the signed XML payload + reference number of the original
+     * letter being replied to.
+     *
+     * @return array{reply_reference_no:string,status:string,message:string}
+     */
+    public function submitReplyC(string $environment, string $kasReferenceNo, string $signedXmlPath): array
+    {
+        if ($environment === 'mock') {
+            $r = DemoEusMockService::submitReply($kasReferenceNo);
+            return [
+                'reply_reference_no' => (string) $r['reply_reference_no'],
+                'status'             => (string) $r['status'],
+                'message'            => (string) $r['message'],
+            ];
+        }
+        throw new \RuntimeException(
+            "Real e-US Bramka C reply not yet implemented for env='{$environment}'."
+        );
+    }
+
     /**
      * Internal: actual cURL hit. Logged through EusLogger so the full
      * roundtrip is captured for support purposes.

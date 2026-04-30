@@ -76,6 +76,14 @@ foreach ($eusJobs['errors'] as $err) {
     echo "  ERROR: {$err}\n";
 }
 
+// 6d. Poll e-US Bramka C for new KAS letters (throttled per client)
+echo "Polling e-US Bramka C for new KAS letters...\n";
+$eusKas = CronService::pollEusCorrespondence();
+echo "  Spawned poll workers: {$eusKas['spawned']}\n";
+foreach ($eusKas['errors'] as $err) {
+    echo "  ERROR: {$err}\n";
+}
+
 // 7. Process scheduled exports
 echo "Processing scheduled exports...\n";
 $schedResult = CronService::processScheduledExports();
