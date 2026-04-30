@@ -266,6 +266,12 @@
                     <?= $lang('contracts_module') ?>
                 </a>
                 <?php endif; ?>
+                <?php if ($canModule('eus')): ?>
+                <a href="/office/eus" class="sidebar-link <?= str_starts_with($currentPath, '/office/eus') ? 'active' : '' ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21V12h6v9"/></svg>
+                    e-Urząd Skarbowy
+                </a>
+                <?php endif; ?>
 
                 <div class="sidebar-group-label"><?= $lang('nav_invoices') ?></div>
                 <?php if (!$isEmployee): ?>
