@@ -910,7 +910,12 @@ body {
 [data-theme="dark"] .empty-state,
 [data-theme="dark"] .filter-bar,
 [data-theme="dark"] .bulk-bar,
+[data-theme="dark"] .card,
 [data-theme="dark"] .contact-card { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
+[data-theme="dark"] .card-header { color: #D9D9D9; border-bottom-color: #2D4551; background: transparent; }
+[data-theme="dark"] .card-body { color: #D9D9D9; }
+[data-theme="dark"] .card .text-muted,
+[data-theme="dark"] .card-body .text-muted { color: #8899A5; }
 
 /* Logo containers MUST stay transparent in every theme so a PNG with
    alpha channel doesn't end up rendered against a white inherited bg. */
@@ -944,8 +949,27 @@ body {
 [data-theme="dark"] .modal-content { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
 [data-theme="dark"] .section-header { color: #D9D9D9; }
 [data-theme="dark"] a { color: #00A3A3; }
-[data-theme="dark"] .btn { border-color: #2D4551; }
+[data-theme="dark"] .btn { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
+[data-theme="dark"] .btn:hover { background: #1f3d4a; border-color: #3a5663; }
 [data-theme="dark"] .btn-secondary { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-success,
+[data-theme="dark"] .btn-danger,
+[data-theme="dark"] .btn-warning,
+[data-theme="dark"] .btn-info { color: #ffffff; }
+/* Tables in dark mode — header row + alternating rows. */
+[data-theme="dark"] .table thead th { background: #0B2430; color: #D9D9D9; border-bottom-color: #2D4551; }
+[data-theme="dark"] .table tbody td { border-bottom-color: #2D4551; color: #D9D9D9; }
+[data-theme="dark"] .table tbody tr:hover { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] .table tbody tr td.text-muted,
+[data-theme="dark"] .table tbody td .text-muted,
+[data-theme="dark"] .text-muted { color: #8899A5; }
+[data-theme="dark"] .section-header h1,
+[data-theme="dark"] .section-header h2,
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5 { color: #D9D9D9; }
+[data-theme="dark"] .form-label { color: #D9D9D9; }
+[data-theme="dark"] .form-hint { color: #8899A5; }
+[data-theme="dark"] small { color: #8899A5; }
 [data-theme="dark"] .pagination a, [data-theme="dark"] .pagination span { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
 [data-theme="dark"] .pagination .active { background: var(--primary); color: #fff; }
 
