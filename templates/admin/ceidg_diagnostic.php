@@ -51,7 +51,7 @@
     <p style="color:#888; font-size:0.9em;">Pełny log zapytań i odpowiedzi REST. Skopiuj i przekaż do analizy.</p>
     <div style="position:relative;">
         <button type="button" onclick="copyCeidgLog()" class="btn btn-secondary" style="position:absolute; top:8px; right:8px; padding:4px 12px; font-size:0.85em;">Kopiuj log</button>
-        <textarea id="ceidg-log" readonly style="width:100%; height:500px; font-family:monospace; font-size:0.8em; background:#1a1a2e; color:#e0e0e0; border:1px solid #333; border-radius:8px; padding:12px; white-space:pre; overflow:auto; resize:vertical;"><?= htmlspecialchars($logContent) ?></textarea>
+        <textarea id="ceidg-log" class="diagnostic-log" readonly style="width:100%; height:500px; font-family:monospace; font-size:0.8em; border-radius:8px; padding:12px; white-space:pre; overflow:auto; resize:vertical;"><?= htmlspecialchars($logContent) ?></textarea>
     </div>
 </div>
 

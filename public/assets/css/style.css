@@ -1180,6 +1180,231 @@ body {
     border-color: rgba(220,38,38,0.4) !important;
 }
 
+/* Modal content — light-mode default (dark override at line ~1300). */
+.modal,
+.modal-content { background: #ffffff; color: #1f2937; }
+
+/* Floating menus (PDF export, bulk-progress, dropdowns over content). */
+.floating-menu { background: #ffffff; border: 1px solid var(--gray-300, #d1d5db); color: #1f2937; }
+[data-theme="dark"] .floating-menu { background: #162E3A; border-color: #2D4551; color: #D9D9D9; }
+
+/* Stat grid + cards — used by dashboards (admin, e-US, office). */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+}
+.stat-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px;
+    color: #1f2937;
+}
+[data-theme="dark"] .stat-card {
+    background: #162E3A;
+    border-color: #2D4551;
+    color: #D9D9D9;
+}
+.stat-label {
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+[data-theme="dark"] .stat-label { color: #8899A5; }
+.stat-value { font-size: 32px; font-weight: 700; line-height: 1.1; }
+/* Light-mode value tints — kept readable on white card. */
+.stat-value-info    { color: #2563eb; }
+.stat-value-success { color: #16a34a; }
+.stat-value-error   { color: #dc2626; }
+.stat-value-warning { color: #f59e0b; }
+.stat-value-purple  { color: #7c3aed; }
+/* Dark-mode value tints — brighter so 32px numerals stay legible
+   on the deep blue card. */
+[data-theme="dark"] .stat-value-info    { color: #60a5fa; }
+[data-theme="dark"] .stat-value-success { color: #6ee7b7; }
+[data-theme="dark"] .stat-value-error   { color: #f87171; }
+[data-theme="dark"] .stat-value-warning { color: #fcd34d; }
+[data-theme="dark"] .stat-value-purple  { color: #c4b5fd; }
+
+/* Recovery codes (2FA backup codes display). */
+.recovery-code { padding: 6px; background: #ffffff; color: #1f2937; border-radius: 4px; border: 1px solid #d1d5db; font-family: ui-monospace, monospace; }
+[data-theme="dark"] .recovery-code { background: #0B2430; color: #D9D9D9; border-color: #2D4551; }
+
+/* Info-style note boxes — light yellow / blue / green tints used
+   inline in invoice / contract templates. */
+.info-box-warning { background: #fff3cd; color: #78350f; border: 1px solid #fcd34d; }
+.info-box-info    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.info-box-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+[data-theme="dark"] .info-box-warning { background: #78350f; color: #fde68a; border-color: #f59e0b; }
+[data-theme="dark"] .info-box-info    { background: #0c4a6e; color: #7dd3fc; border-color: #38bdf8; }
+[data-theme="dark"] .info-box-success { background: #064e3b; color: #6ee7b7; border-color: #10b981; }
+
+/* Diagnostic log textarea — used by admin/gus_diagnostic and
+   admin/ceidg_diagnostic for monospace API logs. */
+.diagnostic-log {
+    background: #fafafa;
+    color: #1f2937;
+    border: 1px solid #d1d5db;
+}
+[data-theme="dark"] .diagnostic-log {
+    background: #0B2430;
+    color: #D9D9D9;
+    border-color: #2D4551;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * Dark-mode readability patches (PR: dark-mode-fixes).
+ * Components below were created without [data-theme="dark"]
+ * overrides — they showed light backgrounds with dark text on
+ * the dark canvas, failing WCAG AA contrast.
+ *
+ * Naming convention:
+ *   - Dark badge bg uses the "deep tone" of the badge hue
+ *     (e.g. success → #064e3b emerald-900, warning → #78350f
+ *     amber-900) with the matching "light tone" for text
+ *     (#6ee7b7 / #fde68a). Yields ≥4.5:1 contrast on the dark
+ *     #162E3A card.
+ *   - For dynamic content (user-supplied colors, charts) we
+ *     brighten via filter rather than hard-coding overrides.
+ * ───────────────────────────────────────────────────────── */
+
+/* Badges — currently no dark overrides exist for the .badge-*
+   variants used across invoice / batch / task views. */
+[data-theme="dark"] .badge-success { background: #064e3b; color: #6ee7b7; }
+[data-theme="dark"] .badge-warning { background: #78350f; color: #fde68a; }
+[data-theme="dark"] .badge-error,
+[data-theme="dark"] .badge-danger  { background: #7f1d1d; color: #fca5a5; }
+[data-theme="dark"] .badge-info    { background: #0c4a6e; color: #7dd3fc; }
+[data-theme="dark"] .badge-default { background: #2D4551; color: #D9D9D9; }
+[data-theme="dark"] .badge         { border: 1px solid transparent; }
+
+/* Alerts — flash messages and inline notifications. Light mode
+   already has these; dark mode was only partially covered. */
+[data-theme="dark"] .alert-success { background: #064e3b; color: #6ee7b7; border-color: #10b981; }
+[data-theme="dark"] .alert-warning { background: #78350f; color: #fde68a; border-color: #f59e0b; }
+[data-theme="dark"] .alert-error,
+[data-theme="dark"] .alert-danger  { background: #7f1d1d; color: #fca5a5; border-color: #ef4444; }
+[data-theme="dark"] .alert-info    { background: #0c4a6e; color: #7dd3fc; border-color: #38bdf8; }
+
+/* Comment bubbles — used by message threads (PR-D notes,
+   contracts comments, etc.). Light-mode rules sit at lines
+   ~981-982; this is the missing dark counterpart. */
+[data-theme="dark"] .comment-mine  { background: #0c4a6e; color: #e0f2fe; }
+[data-theme="dark"] .comment-other { background: #162E3A; color: #D9D9D9; border: 1px solid #2D4551; }
+
+/* Ghost button — used on diagnostic / log pages where the
+   default btn class would be too prominent. Border + bg both
+   needed dark overrides. */
+[data-theme="dark"] .btn-ghost {
+    border-color: #2D4551;
+    background: transparent;
+    color: #D9D9D9;
+}
+[data-theme="dark"] .btn-ghost:hover { background: rgba(255,255,255,0.08); }
+
+/* Form inputs inside dark cards — the global rule already
+   handles top-level inputs but inputs inside .form-card / .card
+   would inherit white. */
+[data-theme="dark"] .form-card .form-input,
+[data-theme="dark"] .card .form-input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select.form-input,
+[data-theme="dark"] input[type="text"].form-input,
+[data-theme="dark"] input[type="number"].form-input,
+[data-theme="dark"] input[type="email"].form-input,
+[data-theme="dark"] input[type="date"].form-input,
+[data-theme="dark"] input[type="url"].form-input,
+[data-theme="dark"] input[type="password"].form-input,
+[data-theme="dark"] input[type="file"].form-input {
+    background: #0B2430;
+    color: #D9D9D9;
+    border-color: #2D4551;
+}
+[data-theme="dark"] .form-input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: #647580; }
+[data-theme="dark"] .form-input:focus { border-color: var(--primary, #00A3A3); }
+[data-theme="dark"] .form-input[disabled],
+[data-theme="dark"] .form-input[readonly] { background: #0B2430; color: #647580; opacity: 0.7; }
+
+/* Code + pre blocks — diagnostic logs, KSeF / e-US session
+   files, JSON inspectors. */
+[data-theme="dark"] code,
+[data-theme="dark"] pre {
+    background: #0B2430;
+    color: #D9D9D9;
+    border: 1px solid #2D4551;
+}
+[data-theme="dark"] details pre { border-color: #2D4551; }
+
+/* Modals — backgrounds + overlays. Several inline
+   style="background:white" in templates need the override. */
+[data-theme="dark"] .modal,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] [role="dialog"] { background: #162E3A; color: #D9D9D9; border-color: #2D4551; }
+[data-theme="dark"] .modal-backdrop { background: rgba(0,0,0,0.6); }
+
+/* Tabs — used in client_edit (Contact / Tax / SFTP) and
+   contracts module. Active tab indicator needs adjustment. */
+[data-theme="dark"] .tabs { border-bottom-color: #2D4551; }
+[data-theme="dark"] .tab-link { color: #8899A5; }
+[data-theme="dark"] .tab-link:hover { color: #D9D9D9; }
+[data-theme="dark"] .tab-link.active { color: #00A3A3; border-bottom-color: #00A3A3; }
+
+/* Stat cards (admin / e-US dashboards) — cards have inline
+   dynamic colors for the number; we brighten only the value
+   text rather than overriding each color individually. */
+[data-theme="dark"] .stat-card {
+    background: #162E3A;
+    border-color: #2D4551;
+    color: #D9D9D9;
+}
+
+/* Hard-coded accent colors in inline styles — defensive global
+   filter so legacy templates render brighter on dark canvas
+   without per-template edits. Targeted pattern matching only. */
+[data-theme="dark"] [style*="color:#2563eb"],
+[data-theme="dark"] [style*="color:#1e40af"],
+[data-theme="dark"] [style*="color:#2563EB"] { color: #60a5fa !important; }
+[data-theme="dark"] [style*="color:#dc2626"],
+[data-theme="dark"] [style*="color:#991b1b"],
+[data-theme="dark"] [style*="color:#ef4444"],
+[data-theme="dark"] [style*="color:#DC2626"] { color: #f87171 !important; }
+[data-theme="dark"] [style*="color:#16a34a"],
+[data-theme="dark"] [style*="color:#15803d"],
+[data-theme="dark"] [style*="color:#166534"],
+[data-theme="dark"] [style*="color:#16A34A"] { color: #86efac !important; }
+[data-theme="dark"] [style*="color:#f59e0b"],
+[data-theme="dark"] [style*="color:#92400e"],
+[data-theme="dark"] [style*="color:#78350f"],
+[data-theme="dark"] [style*="color:#F59E0B"] { color: #fcd34d !important; }
+[data-theme="dark"] [style*="color:#7c3aed"],
+[data-theme="dark"] [style*="color:#4338ca"],
+[data-theme="dark"] [style*="color:#7C3AED"] { color: #c4b5fd !important; }
+[data-theme="dark"] [style*="color:#d97706"],
+[data-theme="dark"] [style*="color:#b45309"] { color: #fcd34d !important; }
+[data-theme="dark"] [style*="color:#0f766e"],
+[data-theme="dark"] [style*="color:#0d9488"] { color: #5eead4 !important; }
+[data-theme="dark"] [style*="color:#581c87"],
+[data-theme="dark"] [style*="color:#6b21a8"] { color: #d8b4fe !important; }
+
+/* Hard-coded light backgrounds in inline styles — soften so
+   they remain on-theme without being eyeball-burning. */
+[data-theme="dark"] [style*="background:#f3f4f6"],
+[data-theme="dark"] [style*="background:#f9fafb"],
+[data-theme="dark"] [style*="background:#f5f5f5"],
+[data-theme="dark"] [style*="background-color:#f3f4f6"],
+[data-theme="dark"] [style*="background:#fff"] { background: #162E3A !important; }
+[data-theme="dark"] [style*="background:#e5e7eb"],
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background:#e0e7ff"],
+[data-theme="dark"] [style*="background:#fff3cd"],
+[data-theme="dark"] [style*="background:#fde68a"] { filter: brightness(0.45) saturate(1.2); }
+
 /* Mono font utility for numeric data */
 .font-mono { font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
 
