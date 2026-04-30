@@ -63,6 +63,11 @@ echo "Checking expiring KSeF certificates...\n";
 $certWarnings = CronService::checkExpiringCertificates();
 echo "  Certificate expiry warnings sent: {$certWarnings}\n";
 
+// 6b. Check expiring e-US UPL-1 (pełnomocnictwo) — creates office tasks
+echo "Checking expiring e-US UPL-1 (pełnomocnictwo)...\n";
+$eusWarnings = CronService::checkExpiringEusCredentials();
+echo "  e-US UPL-1 expiry tasks created: {$eusWarnings}\n";
+
 // 7. Process scheduled exports
 echo "Processing scheduled exports...\n";
 $schedResult = CronService::processScheduledExports();

@@ -271,6 +271,61 @@ class CronService
      * Send email warnings about expiring KSeF certificates.
      * Checks at 30, 14, and 7 days before expiry.
      */
+    /**
+     * Warn the office about clients whose UPL-1 (pełnomocnictwo) is
+     * about to expire. Creates a high-priority ClientTask so the
+     * action is actually visible (mail-only would get lost in inbox).
+     *
+     * Triggers at 30 / 14 / 7 days before upl1_valid_to. Idempotent:
+     * checks for an existing 'eus_upl1_expiring' task on the client
+     * within the last $days * 86400 seconds before creating a new one.
+     */
+    public static function checkExpiringEusCredentials(): int
+    {
+        $created = 0;
+        $thresholds = [30, 14, 7];
+
+        foreach ($thresholds as $days) {
+            $rows = \App\Models\EusConfig::findExpiringUpl1($days);
+            foreach ($rows as $row) {
+                $expiryDate = $row['upl1_valid_to'] ?? null;
+                if (!$expiryDate) continue;
+
+                $daysLeft = (int) ceil((strtotime($expiryDate) - time()) / 86400);
+                // Threshold window: only fire when daysLeft sits in the
+                // expected band so a single config triggers once per band.
+                $low = $days === 7 ? 0 : ($days - 2);
+                if ($daysLeft > $days || $daysLeft < $low) {
+                    continue;
+                }
+
+                // Idempotency — skip if a recent task already exists
+                // for this client + same threshold band.
+                $existing = \App\Core\Database::getInstance()->fetchOne(
+                    "SELECT id FROM client_tasks
+                      WHERE client_id = ?
+                        AND title LIKE ?
+                        AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                      LIMIT 1",
+                    [(int) $row['client_id'], "e-US: UPL-1%{$days}d%"]
+                );
+                if ($existing) continue;
+
+                \App\Models\ClientTask::create(
+                    (int) $row['client_id'],
+                    'system',
+                    0,
+                    "e-US: UPL-1 dla {$row['company_name']} wygasa za {$days}d ({$expiryDate})",
+                    "Pełnomocnictwo UPL-1 wygasa {$expiryDate}. Bez aktywnego UPL-1 system odrzuci każdą wysyłkę do e-US. Skontaktuj się z klientem aby przedłużył pełnomocnictwo.",
+                    $days <= 7 ? 'high' : 'normal',
+                    $expiryDate
+                );
+                $created++;
+            }
+        }
+        return $created;
+    }
+
     public static function checkExpiringCertificates(): int
     {
         $sent = 0;
