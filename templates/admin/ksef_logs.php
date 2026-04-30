@@ -37,7 +37,7 @@
         <h2 style="font-size:16px;margin-bottom:8px;">
             <?= $lang('ksef_log_detail') ?>: <code><?= htmlspecialchars($selectedSession) ?></code>
         </h2>
-        <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;max-height:700px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"><?php
+        <pre class="diagnostic-log" style="padding:16px;border-radius:8px;font-size:12px;line-height:1.6;overflow-x:auto;max-height:700px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;"><?php
             // Highlight log levels
             $content = htmlspecialchars($logContent);
             $content = preg_replace('/\[ERROR\]/', '<span style="color:#ef4444;font-weight:bold;">[ERROR]</span>', $content);

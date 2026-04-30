@@ -317,7 +317,7 @@ $baseUrl = '/office/tax-calendar';
 
 <!-- ══════ ADD EVENT MODAL ══════ -->
 <div id="addEventModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px;">
-    <div style="background:white; border-radius:12px; padding:24px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div class="modal-content" style="border-radius:12px; padding:24px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h3 style="margin:0;"><?= $lang('add_event') ?></h3>
             <button type="button" onclick="document.getElementById('addEventModal').style.display='none'" style="background:none; border:none; cursor:pointer; padding:4px; color:var(--gray-400);">

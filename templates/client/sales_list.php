@@ -222,7 +222,7 @@
 </form>
 
 <!-- PDF Export Menu (floating) -->
-<div id="pdfExportMenu" style="display:none; position:fixed; bottom:80px; right:20px; background:#fff; border:1px solid var(--gray-300, #d1d5db); border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:240px; max-width:calc(100vw - 40px);">
+<div id="pdfExportMenu" class="floating-menu" style="display:none; position:fixed; bottom:80px; right:20px; border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:240px; max-width:calc(100vw - 40px);">
     <h4 style="margin:0 0 8px; font-size:14px;">Eksport PDF</h4>
     <button type="button" class="btn btn-sm" style="width:100%; margin-bottom:6px;" onclick="submitSalesPdf('vertical')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -239,7 +239,8 @@
 .badge-info { background: var(--blue-100, #dbeafe); color: var(--blue-700, #1d4ed8); }
 .badge-warning { background: var(--yellow-100, #fef3c7); color: var(--yellow-700, #a16207); }
 .badge-error { background: var(--red-100, #fee2e2); color: var(--red-700, #b91c1c); }
-.bulk-progress { position:fixed; bottom:20px; right:20px; background:white; border:1px solid var(--gray-300, #d1d5db); border-radius:8px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:280px; max-width:calc(100vw - 40px); max-height:60vh; overflow-y:auto; }
+.bulk-progress { position:fixed; bottom:20px; right:20px; background:#ffffff; border:1px solid var(--gray-300, #d1d5db); border-radius:8px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:280px; max-width:calc(100vw - 40px); max-height:60vh; overflow-y:auto; }
+[data-theme="dark"] .bulk-progress { background:#162E3A; border-color:#2D4551; color:#D9D9D9; }
 .bulk-progress h4 { margin:0 0 8px; }
 .bulk-item { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:13px; border-bottom:1px solid var(--gray-100, #f3f4f6); }
 .bulk-item:last-child { border-bottom:none; }

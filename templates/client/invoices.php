@@ -324,7 +324,7 @@ if (!empty($unpaidAccepted)):
             </table>
         </div>
 
-        <div id="detail-notes-section" style="display:none;margin-bottom:12px;padding:8px;background:#fff3cd;border-radius:6px;font-size:0.9em;">
+        <div id="detail-notes-section" class="info-box-warning" style="display:none;margin-bottom:12px;padding:8px;border-radius:6px;font-size:0.9em;">
             <strong>Uwagi:</strong> <span id="detail-notes"></span>
         </div>
 

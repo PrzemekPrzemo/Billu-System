@@ -1180,6 +1180,40 @@ body {
     border-color: rgba(220,38,38,0.4) !important;
 }
 
+/* Modal content — light-mode default (dark override at line ~1300). */
+.modal,
+.modal-content { background: #ffffff; color: #1f2937; }
+
+/* Floating menus (PDF export, bulk-progress, dropdowns over content). */
+.floating-menu { background: #ffffff; border: 1px solid var(--gray-300, #d1d5db); color: #1f2937; }
+[data-theme="dark"] .floating-menu { background: #162E3A; border-color: #2D4551; color: #D9D9D9; }
+
+/* Recovery codes (2FA backup codes display). */
+.recovery-code { padding: 6px; background: #ffffff; color: #1f2937; border-radius: 4px; border: 1px solid #d1d5db; font-family: ui-monospace, monospace; }
+[data-theme="dark"] .recovery-code { background: #0B2430; color: #D9D9D9; border-color: #2D4551; }
+
+/* Info-style note boxes — light yellow / blue / green tints used
+   inline in invoice / contract templates. */
+.info-box-warning { background: #fff3cd; color: #78350f; border: 1px solid #fcd34d; }
+.info-box-info    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.info-box-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+[data-theme="dark"] .info-box-warning { background: #78350f; color: #fde68a; border-color: #f59e0b; }
+[data-theme="dark"] .info-box-info    { background: #0c4a6e; color: #7dd3fc; border-color: #38bdf8; }
+[data-theme="dark"] .info-box-success { background: #064e3b; color: #6ee7b7; border-color: #10b981; }
+
+/* Diagnostic log textarea — used by admin/gus_diagnostic and
+   admin/ceidg_diagnostic for monospace API logs. */
+.diagnostic-log {
+    background: #fafafa;
+    color: #1f2937;
+    border: 1px solid #d1d5db;
+}
+[data-theme="dark"] .diagnostic-log {
+    background: #0B2430;
+    color: #D9D9D9;
+    border-color: #2D4551;
+}
+
 /* ─────────────────────────────────────────────────────────
  * Dark-mode readability patches (PR: dark-mode-fixes).
  * Components below were created without [data-theme="dark"]

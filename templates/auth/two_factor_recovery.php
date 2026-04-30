@@ -44,7 +44,7 @@
         <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:monospace;font-size:1.1em;text-align:center;">
                 <?php foreach ($codes as $code): ?>
-                    <div style="padding:6px;background:#fff;border-radius:4px;border:1px solid #ddd;"><?= htmlspecialchars($code) ?></div>
+                    <div class="recovery-code"><?= htmlspecialchars($code) ?></div>
                 <?php endforeach; ?>
             </div>
         </div>
