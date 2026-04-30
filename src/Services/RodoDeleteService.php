@@ -31,6 +31,22 @@ class RodoDeleteService
             return ['success' => false, 'error' => 'Client not found'];
         }
 
+        // KAS retention guard (e-US Bramka C — 10y default per
+        // settings.eus_kas_letters_retain_years). The retain_until
+        // column on eus_documents is honored here AND in the optional
+        // soft-purge cron — RODO delete refuses, never overrides.
+        // Master admin must first export pism KAS to off-line archive,
+        // then purge those rows manually before re-attempting.
+        if (\App\Models\EusDocument::hasActiveRetention($clientId)) {
+            return [
+                'success' => false,
+                'error'   => 'Klient ma aktywne pisma KAS objęte 10-letnią retencją. '
+                          . 'Wymagany eksport offline + ręczne usunięcie pism z aktywnym retain_until '
+                          . 'przed RODO delete. Skontaktuj się z master adminem.',
+                'blocked_by' => 'eus_kas_retention',
+            ];
+        }
+
         $db = Database::getInstance();
         $summary = [
             'client_id' => $clientId,
