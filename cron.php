@@ -68,6 +68,14 @@ echo "Checking expiring e-US UPL-1 (pełnomocnictwo)...\n";
 $eusWarnings = CronService::checkExpiringEusCredentials();
 echo "  e-US UPL-1 expiry tasks created: {$eusWarnings}\n";
 
+// 6c. Drain e-US Bramka B job queue — spawns bg workers
+echo "Draining e-US Bramka B job queue...\n";
+$eusJobs = CronService::processEusJobs();
+echo "  Spawned: {$eusJobs['spawned']}, skipped: {$eusJobs['skipped']}\n";
+foreach ($eusJobs['errors'] as $err) {
+    echo "  ERROR: {$err}\n";
+}
+
 // 7. Process scheduled exports
 echo "Processing scheduled exports...\n";
 $schedResult = CronService::processScheduledExports();

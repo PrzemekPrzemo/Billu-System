@@ -272,6 +272,83 @@ class CronService
      * Checks at 30, 14, and 7 days before expiry.
      */
     /**
+     * Drain pending eus_jobs by spawning the appropriate bg script.
+     *
+     * Called every cron tick (~5min on Plesk). Per-job advances are
+     * cheap (single SELECT FOR UPDATE on each pending row) — heavy
+     * work happens inside the spawned process, so this method
+     * returns quickly even when there are dozens of jobs queued.
+     *
+     * Limits to $maxPerTick spawns per call so a flood of failures
+     * does not exhaust PHP-FPM worker pool.
+     *
+     * @return array{spawned:int, skipped:int, errors:string[]}
+     */
+    public static function processEusJobs(int $maxPerTick = 10): array
+    {
+        $result = ['spawned' => 0, 'skipped' => 0, 'errors' => []];
+        $db = \App\Core\Database::getInstance();
+
+        $rows = $db->fetchAll(
+            "SELECT id, job_type FROM eus_jobs
+              WHERE state = 'pending'
+                AND (next_run_at IS NULL OR next_run_at <= NOW())
+              ORDER BY id ASC
+              LIMIT ?",
+            [$maxPerTick]
+        );
+
+        $scriptDir = realpath(__DIR__ . '/../../scripts') ?: (__DIR__ . '/../../scripts');
+        $phpBin    = self::detectPhpBinary();
+
+        foreach ($rows as $row) {
+            $script = match ($row['job_type']) {
+                'submit_b' => $scriptDir . '/eus_submit_b_bg.php',
+                'poll_b'   => $scriptDir . '/eus_poll_b_bg.php',
+                default    => null,
+            };
+            if ($script === null || !is_file($script)) {
+                $result['skipped']++;
+                continue;
+            }
+            // Detached spawn — log file captures errors.
+            $logPath = __DIR__ . '/../../storage/logs/eus/cron-spawn.log';
+            $cmd = escapeshellcmd($phpBin) . ' ' . escapeshellarg($script) . ' '
+                 . escapeshellarg((string) $row['id']) . ' >> '
+                 . escapeshellarg($logPath) . ' 2>&1 &';
+            try {
+                @exec($cmd);
+                $result['spawned']++;
+            } catch (\Throwable $e) {
+                $result['errors'][] = 'job ' . $row['id'] . ': ' . $e->getMessage();
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Best-effort PHP CLI binary detection. Plesk vhosts run FPM under
+     * one PHP version while CLI defaults to a different one — we walk
+     * common paths and return the first executable found.
+     */
+    private static function detectPhpBinary(): string
+    {
+        $candidates = [
+            '/opt/plesk/php/8.4/bin/php',
+            '/opt/plesk/php/8.3/bin/php',
+            '/usr/local/bin/php',
+            '/usr/bin/php',
+            PHP_BINARY,
+        ];
+        foreach ($candidates as $bin) {
+            if (is_string($bin) && @is_executable($bin)) {
+                return $bin;
+            }
+        }
+        return 'php';
+    }
+
+    /**
      * Warn the office about clients whose UPL-1 (pełnomocnictwo) is
      * about to expire. Creates a high-priority ClientTask so the
      * action is actually visible (mail-only would get lost in inbox).
