@@ -488,6 +488,7 @@ $router->get ('/office/eus',                                      [\App\Controll
 $router->get ('/office/eus/{clientId}/configure',                 [\App\Controllers\OfficeEusController::class, 'configureForm']);
 $router->post('/office/eus/{clientId}/configure',                 [\App\Controllers\OfficeEusController::class, 'configureSave']);
 $router->post('/office/eus/{clientId}/test-connection',           [\App\Controllers\OfficeEusController::class, 'testConnection']);
+$router->post('/office/eus/{clientId}/submit-jpk-v7m',            [\App\Controllers\OfficeEusController::class, 'submitJpkV7m']);
 
 // ── Contracts module ─────────────────────────────────────
 // Office side

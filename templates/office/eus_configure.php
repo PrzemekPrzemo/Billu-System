@@ -186,6 +186,29 @@ $selectedScope    = $selectedScopeRaw !== '' ? explode(',', $selectedScopeRaw) :
         Wykona zapytanie /health do bramek włączonych w konfiguracji.
     </small>
 </form>
+
+<?php if (!empty($config['bramka_b_enabled'])): ?>
+<div class="card" style="margin-top:20px; max-width:720px;">
+    <div class="card-header">Wyślij JPK_V7M do e-US</div>
+    <div class="card-body">
+        <p style="color:var(--gray-500); font-size:13px; margin-bottom:12px;">
+            Wymaga: aktywne UPL-1, wygenerowany lokalnie plik JPK (storage/jpk/).
+            Status wysyłki pojawi się jako wiadomość w panelu klienta.
+        </p>
+        <form method="POST" action="/office/eus/<?= $cid ?>/submit-jpk-v7m" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Okres (YYYY-MM)</label>
+                <input type="text" name="period" class="form-input"
+                       pattern="\d{4}-\d{2}" placeholder="2026-04"
+                       value="<?= htmlspecialchars(date('Y-m', strtotime('-1 month')), ENT_QUOTES) ?>"
+                       required style="width:160px;">
+            </div>
+            <button type="submit" class="btn btn-primary">Wyślij do e-US</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <?php endif; ?>
 
 <?php if (!empty($config['cert_subject']) || !empty($config['auth_provider_subject'])): ?>

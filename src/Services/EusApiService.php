@@ -65,6 +65,76 @@ class EusApiService
         return $this->doHealth($this->urlFor('C', $environment) . '/health');
     }
 
+    // ─── Bramka B — JPK submission ───────────────────────
+
+    /**
+     * Submit a JPK_V7M payload. Returns the e-US reference number on
+     * success, throws RuntimeException on cert / network / 4xx errors.
+     *
+     * In 'mock' environment uses DemoEusMockService for predictable
+     * test results. Real outbound (env=test|prod) is wired in a
+     * follow-up commit when MF sandbox creds are provisioned —
+     * stubbed for now to keep PR-3 reviewable.
+     *
+     * @return array{reference_no:string,received_at:string,message:string}
+     */
+    public function submitB(string $environment, string $period, string $signedXmlPath): array
+    {
+        if ($environment === 'mock') {
+            $r = DemoEusMockService::submitJpk($period);
+            return [
+                'reference_no' => (string) $r['reference_no'],
+                'received_at'  => (string) $r['received_at'],
+                'message'      => (string) $r['message'],
+            ];
+        }
+        // PR-3 follow-up: real cURL + multipart + Authorization Bearer.
+        // Stub fails-closed so we never silently skip a submission.
+        throw new \RuntimeException(
+            "Real e-US Bramka B submission not yet implemented for env='{$environment}'. "
+            . "Stay on 'mock' until follow-up commit lands."
+        );
+    }
+
+    /**
+     * Poll status for a previously submitted reference. The poller
+     * supplies submittedAt so the mock can advance the timeline
+     * deterministically.
+     *
+     * @return array{status:string,upo:?string,message:string}
+     */
+    public function getStatusB(string $environment, string $referenceNo, ?\DateTimeImmutable $submittedAt = null): array
+    {
+        if ($environment === 'mock') {
+            $r = DemoEusMockService::statusForReference($referenceNo, $submittedAt);
+            return [
+                'status'  => (string) $r['status'],
+                'upo'     => $r['upo'] !== null ? (string) $r['upo'] : null,
+                'message' => (string) $r['message'],
+            ];
+        }
+        throw new \RuntimeException(
+            "Real e-US Bramka B status poll not yet implemented for env='{$environment}'."
+        );
+    }
+
+    /**
+     * In real envs this returns the UPO XML body. In mock the UPO is
+     * already inlined in getStatusB() — caller may skip this step.
+     */
+    public function downloadUpoB(string $environment, string $referenceNo): string
+    {
+        if ($environment === 'mock') {
+            // Mock UPO is delivered through getStatusB; this is just a
+            // convenience that re-fetches.
+            $r = DemoEusMockService::statusForReference($referenceNo);
+            return (string) ($r['upo'] ?? '');
+        }
+        throw new \RuntimeException(
+            "Real e-US Bramka B UPO download not yet implemented for env='{$environment}'."
+        );
+    }
+
     /**
      * Internal: actual cURL hit. Logged through EusLogger so the full
      * roundtrip is captured for support purposes.
