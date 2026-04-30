@@ -15,26 +15,26 @@
 </p>
 
 <!-- ── Today's counts ──────────────────────────────────── -->
-<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; margin-bottom:24px;">
-    <div class="stat-card" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px;">
-        <div style="font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em;">Dziś — wysłane</div>
-        <div style="font-size:32px; font-weight:700; color:#2563eb;"><?= (int) ($today['submitted'] ?? 0) ?></div>
+<div class="stat-grid" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="stat-label">Dziś — wysłane</div>
+        <div class="stat-value stat-value-info"><?= (int) ($today['submitted'] ?? 0) ?></div>
     </div>
-    <div class="stat-card" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px;">
-        <div style="font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em;">Dziś — zaakceptowane</div>
-        <div style="font-size:32px; font-weight:700; color:#16a34a;"><?= (int) ($today['accepted'] ?? 0) ?></div>
+    <div class="stat-card">
+        <div class="stat-label">Dziś — zaakceptowane</div>
+        <div class="stat-value stat-value-success"><?= (int) ($today['accepted'] ?? 0) ?></div>
     </div>
-    <div class="stat-card" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px;">
-        <div style="font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em;">Dziś — odrzucone</div>
-        <div style="font-size:32px; font-weight:700; color:#dc2626;"><?= (int) ($today['rejected'] ?? 0) ?></div>
+    <div class="stat-card">
+        <div class="stat-label">Dziś — odrzucone</div>
+        <div class="stat-value stat-value-error"><?= (int) ($today['rejected'] ?? 0) ?></div>
     </div>
-    <div class="stat-card" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px;">
-        <div style="font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em;">Dziś — błędy</div>
-        <div style="font-size:32px; font-weight:700; color:#f59e0b;"><?= (int) ($today['errors'] ?? 0) ?></div>
+    <div class="stat-card">
+        <div class="stat-label">Dziś — błędy</div>
+        <div class="stat-value stat-value-warning"><?= (int) ($today['errors'] ?? 0) ?></div>
     </div>
-    <div class="stat-card" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:8px; padding:14px;">
-        <div style="font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em;">Dziś — pisma KAS</div>
-        <div style="font-size:32px; font-weight:700; color:#7c3aed;"><?= (int) ($today['kas_letters'] ?? 0) ?></div>
+    <div class="stat-card">
+        <div class="stat-label">Dziś — pisma KAS</div>
+        <div class="stat-value stat-value-purple"><?= (int) ($today['kas_letters'] ?? 0) ?></div>
     </div>
 </div>
 
