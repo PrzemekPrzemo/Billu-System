@@ -16,6 +16,7 @@ use App\Models\OfficeEmployee;
 use App\Services\EusApiService;
 use App\Services\EusCertificateService;
 use App\Services\EusProfilZaufanyService;
+use App\Services\EusSubmissionService;
 
 /**
  * Office UI for the e-Urząd Skarbowy module.
@@ -222,6 +223,60 @@ class OfficeEusController extends Controller
         }
 
         Session::flash('success', implode(' • ', $messages));
+        $this->redirect("/office/eus/{$cid}/configure");
+    }
+
+    /**
+     * POST /office/eus/{clientId}/submit-jpk-v7m
+     *
+     * Body params:
+     *   - period (YYYY-MM, required)
+     *   - related_status_id (int, optional — links the submission to
+     *     a client_monthly_status row so workflow + UPO are wired)
+     *
+     * Hand-off: queues an eus_jobs row + eus_documents row. The
+     * actual API call happens in the bg worker (cron drains the
+     * queue every ~5min — submission usually fires <30s after click).
+     * Office sees status updates as they propagate to messages/tasks.
+     */
+    public function submitJpkV7m(string $clientId): void
+    {
+        if (!$this->validateCsrf()) {
+            $this->redirect('/office/eus');
+            return;
+        }
+        $cid = (int) $clientId;
+        $client = $this->requireClientForOffice($cid);
+        if ($client === null) return;
+
+        $officeId = (int) Session::get('office_id');
+        $period   = (string) ($_POST['period'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}$/', $period)) {
+            Session::flash('error', 'Nieprawidłowy format okresu — wymagane YYYY-MM.');
+            $this->redirect("/office/eus/{$cid}/configure");
+            return;
+        }
+        $relatedStatusId = !empty($_POST['related_status_id'])
+            ? (int) $_POST['related_status_id']
+            : null;
+
+        try {
+            $svc = new EusSubmissionService();
+            $jobUuid = $svc->queueJpkV7M($cid, $officeId, $period, $relatedStatusId);
+
+            AuditLog::log(
+                Auth::isEmployee() ? 'office_employee' : 'office',
+                (int) (Auth::isEmployee() ? Session::get('employee_id') : Session::get('office_id')),
+                'eus_jpk_v7m_queued',
+                "client #{$cid} period={$period} job={$jobUuid}",
+                'eus_document'
+            );
+
+            Session::flash('success',
+                "JPK_V7M za {$period} dodany do kolejki wysyłki. Status pojawi się w wiadomościach klienta. (job: {$jobUuid})");
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Nie udało się zakolejkować wysyłki: ' . $e->getMessage());
+        }
         $this->redirect("/office/eus/{$cid}/configure");
     }
 }
