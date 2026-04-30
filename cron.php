@@ -84,6 +84,11 @@ foreach ($eusKas['errors'] as $err) {
     echo "  ERROR: {$err}\n";
 }
 
+// 6e. Snapshot today's e-US metrics for the master dashboard
+echo "Snapshotting e-US daily metrics...\n";
+CronService::eusHealthMetrics();
+echo "  Done\n";
+
 // 7. Process scheduled exports
 echo "Processing scheduled exports...\n";
 $schedResult = CronService::processScheduledExports();

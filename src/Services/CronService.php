@@ -272,6 +272,83 @@ class CronService
      * Checks at 30, 14, and 7 days before expiry.
      */
     /**
+     * Snapshot today's e-US activity into eus_metrics_daily.
+     * Idempotent — UNIQUE on captured_date so multiple ticks per
+     * day overwrite (latest snapshot wins). The master dashboard
+     * (AdminEusController) reads this table.
+     */
+    public static function eusHealthMetrics(): void
+    {
+        $db = \App\Core\Database::getInstance();
+        $today = date('Y-m-d');
+
+        $row = $db->fetchOne(
+            "SELECT
+               SUM(CASE WHEN status = 'submitted'    AND DATE(submitted_at) = ? THEN 1 ELSE 0 END) AS submitted_count,
+               SUM(CASE WHEN status = 'zaakceptowany' AND DATE(finalized_at) = ? THEN 1 ELSE 0 END) AS accepted_count,
+               SUM(CASE WHEN status = 'odrzucony'    AND DATE(finalized_at) = ? THEN 1 ELSE 0 END) AS rejected_count,
+               SUM(CASE WHEN status = 'error'        AND DATE(updated_at)  = ? THEN 1 ELSE 0 END) AS error_count,
+               SUM(CASE WHEN direction = 'in'        AND DATE(external_received_at) = ? THEN 1 ELSE 0 END) AS kas_letters_received_count
+             FROM eus_documents",
+            [$today, $today, $today, $today, $today]
+        ) ?: [];
+
+        // Polling errors come from eus_operations_log entries with
+        // operation = 'kas_letter_ingest_error' OR 'kas_poll_complete'
+        // when ingested=0 and error_message is set.
+        $pollErrors = (int) ($db->fetchOne(
+            "SELECT COUNT(*) AS cnt FROM eus_operations_log
+              WHERE DATE(created_at) = ?
+                AND operation IN ('kas_letter_ingest_error')",
+            [$today]
+        )['cnt'] ?? 0);
+
+        // Cert + UPL-1 expiry warnings created today (high-priority
+        // ClientTasks with prefix 'e-US: certyfikat' / 'e-US: UPL-1').
+        $certWarn = (int) ($db->fetchOne(
+            "SELECT COUNT(*) AS cnt FROM client_tasks
+              WHERE DATE(created_at) = ?
+                AND title LIKE 'e-US: certyfikat%'",
+            [$today]
+        )['cnt'] ?? 0);
+        $upl1Warn = (int) ($db->fetchOne(
+            "SELECT COUNT(*) AS cnt FROM client_tasks
+              WHERE DATE(created_at) = ?
+                AND title LIKE 'e-US: UPL-1%'",
+            [$today]
+        )['cnt'] ?? 0);
+
+        $db->query(
+            "INSERT INTO eus_metrics_daily (
+                captured_date, submitted_count, accepted_count, rejected_count,
+                error_count, kas_letters_received_count, polling_errors_count,
+                cert_expiry_warnings_count, upl1_expiry_warnings_count
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                submitted_count = VALUES(submitted_count),
+                accepted_count  = VALUES(accepted_count),
+                rejected_count  = VALUES(rejected_count),
+                error_count     = VALUES(error_count),
+                kas_letters_received_count = VALUES(kas_letters_received_count),
+                polling_errors_count       = VALUES(polling_errors_count),
+                cert_expiry_warnings_count = VALUES(cert_expiry_warnings_count),
+                upl1_expiry_warnings_count = VALUES(upl1_expiry_warnings_count),
+                captured_at = CURRENT_TIMESTAMP",
+            [
+                $today,
+                (int) ($row['submitted_count'] ?? 0),
+                (int) ($row['accepted_count']  ?? 0),
+                (int) ($row['rejected_count']  ?? 0),
+                (int) ($row['error_count']     ?? 0),
+                (int) ($row['kas_letters_received_count'] ?? 0),
+                $pollErrors,
+                $certWarn,
+                $upl1Warn,
+            ]
+        );
+    }
+
+    /**
      * Poll Bramka C for new KAS letters across all due clients.
      *
      * Iterates client_eus_configs.findDueForPolling() (which already
