@@ -139,6 +139,7 @@ $router->post('/admin/settings', [AdminController::class, 'settingsUpdate']);
 $router->get('/admin/api-settings', [AdminController::class, 'apiSettings']);
 $router->post('/admin/api-settings', [AdminController::class, 'apiSettingsUpdate']);
 $router->get('/admin/activity-log', [AdminController::class, 'activityLog']);
+$router->get('/admin/eus', [\App\Controllers\AdminEusController::class, 'dashboard']);
 // Mobile API management
 $router->get('/admin/api/sessions', [AdminController::class, 'apiSessions']);
 $router->post('/admin/api/sessions/revoke-all', [AdminController::class, 'apiRevokeAllSessions']);
